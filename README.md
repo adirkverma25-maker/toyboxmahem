@@ -30,6 +30,8 @@ Map-specific code: `src/world/Arena.ts` (bedroom), `src/world/Backyard.ts` (back
 
 Prices and rewards are in `src/core/Progress.ts`. Bots aren't limited by unlocks.
 
+**Unlock everything:** on the Loadout screen, type the code `TOYBOXFREE` in **Have a code?** and press Redeem. Every blaster unlocks for the account you're logged into.
+
 ## Loadout and scopes
 
 There are no weapon pick-ups on the maps any more. On the main menu open **Loadout and unlocks** (also on the Play screen and the pause menu) and pick a primary and a secondary from the blasters you've unlocked, plus a scope for each. It's saved in the browser. Changing it mid-match applies on your next respawn. Every pick-up (health battery, shield, power-ups) also refills half your reserve ammo for both weapons.

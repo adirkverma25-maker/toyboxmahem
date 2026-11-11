@@ -165,6 +165,22 @@ class ProgressStore {
     return { lines, total, coinsAfter: this.coins, affordable };
   }
 
+  /**
+   * Redeem a code (Loadout screen). Returns a message for the player, or null if the code is wrong.
+   * TOYBOXFREE unlocks every blaster for the current account.
+   */
+  redeem(code: string): string | null {
+    const c = code.trim().toUpperCase();
+    if (c === 'TOYBOXFREE') {
+      const before = this.owned.size;
+      for (const id of WEAPON_ORDER) this.owned.add(id);
+      this.save();
+      this.emit();
+      return this.owned.size > before ? 'Every blaster is unlocked!' : 'You already have every blaster.';
+    }
+    return null;
+  }
+
   /** Testing / admin helper: not used by the UI. */
   grant(coins: number) {
     this.coins += Math.max(0, Math.floor(coins));

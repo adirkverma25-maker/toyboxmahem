@@ -272,12 +272,31 @@ export class Menus {
           <div class="wlist">${this.weaponListHtml()}</div>
           <div class="wview blister"><canvas></canvas><div class="info"></div></div>
         </div>
+        <form class="redeem" autocomplete="off"><label><span>Have a code?</span><input name="code" maxlength="24" spellcheck="false" placeholder="Enter code"></label><button type="submit" class="btn ghost small">Redeem</button><em role="status"></em></form>
         <div class="actions"><button class="btn ghost small" data-a="back">Back</button></div>
       </div>`,
       'panel-wrap dim',
     );
     this.bindWeaponList();
     this.on('[data-a=back]', () => this.goBack());
+    const redeem = this.root.querySelector('form.redeem') as HTMLFormElement;
+    redeem.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const input = redeem.elements.namedItem('code') as HTMLInputElement;
+      const msg = progress.redeem(input.value);
+      const out = redeem.querySelector('em') as HTMLElement;
+      out.textContent = msg ?? "That code didn't work.";
+      out.className = msg ? 'ok' : 'bad';
+      if (!msg) return;
+      input.value = '';
+      this.audio.fanfare(true);
+      const list = this.root.querySelector('.wlist') as HTMLElement | null;
+      if (list) {
+        list.innerHTML = this.weaponListHtml();
+        this.bindWeaponList();
+      }
+      this.showWeapon(false);
+    });
     this.startPreview(this.root.querySelector('canvas')!);
     this.selectedWeapon = loadout.primary;
     this.root.querySelectorAll('[data-w]').forEach((x) => x.setAttribute('aria-pressed', String((x as HTMLElement).dataset.w === this.selectedWeapon)));
