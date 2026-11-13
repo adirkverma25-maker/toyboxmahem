@@ -1,0 +1,14 @@
+{
+  "name": "toybox-mayhem-relay",
+  "private": true,
+  "type": "module",
+  "description": "Online-play relay for Toybox Mayhem (Cloudflare Worker + Durable Objects)",
+  "scripts": {
+    "dev": "wrangler dev --port 8787 --ip 127.0.0.1",
+    "deploy": "node deploy.mjs",
+    "test": "node test-relay.mjs"
+  },
+  "devDependencies": {
+    "wrangler": "^4.161.0"
+  }
+}
