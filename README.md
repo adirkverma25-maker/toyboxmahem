@@ -24,8 +24,8 @@ You need Windows 10 or 11 (64-bit) and about 150 MB of space.
 ## Play with friends online
 
 1. Everyone installs the game (see above).
-2. One person clicks **Play online → Host a room**. The game shows a 5-letter room code.
-3. Everyone else clicks **Play online**, types the code, and presses **Join**.
+2. One person clicks **Multiplayer → Host a room**. The game shows a 5-letter room code.
+3. Everyone else clicks **Multiplayer**, types the code, and presses **Join**.
 4. The host picks the mode, the map and how many bots fill the empty spots, then presses **Start match**.
 
 Up to 8 players per room. Everyone needs the same version of the game.

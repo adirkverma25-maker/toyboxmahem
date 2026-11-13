@@ -218,7 +218,7 @@ func main() -> void:
 	logo.add_child(burst)
 	col.add_child(logo)
 	var play_b := UI.btn("Play", "primary", false, play)
-	var online_b := UI.btn("Play online", "", false, func(): online_screen())
+	var online_b := UI.btn("Multiplayer", "", false, func(): online_screen())
 	var train_b := UI.btn("Training", "", false, func(): cb.start.call(difficulty, "training"))
 	for b in [play_b, online_b, train_b, UI.btn("Loadout and unlocks", "", false, func(): collection("main")), UI.btn("Settings", "", false, func(): settings_screen("main")),
 			UI.btn("Controls", "", false, func(): controls("main")), UI.btn("Credits", "", false, credits)]:
@@ -389,12 +389,12 @@ func play() -> void:
 
 
 # ------------------------------------------------------------------ online
-## Play online: host a room, or join a friend's with its code.
+## Multiplayer: host a room, or join a friend's with its code.
 func online_screen(msg := "") -> void:
 	current = "online"
 	back = "main"
 	var v := _screen(760)
-	v.add_child(UI.title("Play online"))
+	v.add_child(UI.title("Multiplayer"))
 	v.add_child(UI.para("Play with friends over the internet. One player hosts a room and runs the match (bots too); the others join with the room code. Up to %d players per room." % Net.MAX_HUMANS, 17))
 	if msg == "" and Net.default_server() == "":
 		msg = "Online play isn't set up yet: the game server hasn't been put online (see server/README.md). To test on this computer, run the relay and type its address in the Server box."
@@ -494,7 +494,7 @@ func lobby(info: Dictionary) -> void:
 	tv.add_child(UI.label("ROOM CODE", UI.BODY, 14, Color(UI.PAPER, 0.7)))
 	tv.add_child(UI.label(Net.room if Net.room != "" else "...", UI.DISPLAY, 58, UI.SUN))
 	head.add_child(tv)
-	var hint := UI.para("Tell your friends this code: they pick Play online, type it and press Join." if role == "host" else "You're in! The host picks the mode and the map and starts the match.", 16, 0.85)
+	var hint := UI.para("Tell your friends this code: they pick Multiplayer, type it and press Join." if role == "host" else "You're in! The host picks the mode and the map and starts the match.", 16, 0.85)
 	hint.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hint.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	head.add_child(hint)

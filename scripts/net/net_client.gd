@@ -15,8 +15,8 @@ const GUEST_RATE := 30
 ## humans per room (host included)
 const MAX_HUMANS := 8
 ## The online relay (Cloudflare Worker, see server/README.md; `npm run deploy` there fills this in).
-## The Server box on the Play online screen (Settings serverUrl) or --server=<url> override it.
-const DEFAULT_SERVER := ""
+## The Server box on the Multiplayer screen (Settings serverUrl) or --server=<url> override it.
+const DEFAULT_SERVER := "wss://toybox-mayhem-relay.toybox-mayhem-relay.workers.dev"
 
 ## offline | connecting | online | error
 var status := "offline"

@@ -17,7 +17,7 @@ Then rebuild the game so it knows the address (from the project folder):
 sh tools/build_installer.sh
 ```
 
-Share `build/ToyboxMayhem-Setup.exe` with your friends (or attach it to a GitHub release). In the game: **Play online** → one person presses **Host a room** and reads out the code, the others type it and press **Join**.
+Share `build/ToyboxMayhem-Setup.exe` with your friends (or attach it to a GitHub release). In the game: **Multiplayer** → one person presses **Host a room** and reads out the code, the others type it and press **Join**.
 
 ## Run it on this computer (testing, no account)
 
@@ -26,7 +26,7 @@ npm run dev                         # ws://127.0.0.1:8787
 node test-relay.mjs                 # checks it (or: node test-relay.mjs wss://your-relay.workers.dev)
 ```
 
-In the game, put `ws://127.0.0.1:8787` in the **Server** box on the Play online screen (leave it empty to use the online server).
+In the game, put `ws://127.0.0.1:8787` in the **Server** box on the Multiplayer screen (leave it empty to use the online server).
 
 ## Limits on the free plan
 
