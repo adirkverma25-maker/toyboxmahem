@@ -6,7 +6,7 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-const run = spawnSync('npx', ['wrangler', 'deploy'], { encoding: 'utf8', shell: true, stdio: ['inherit', 'pipe', 'pipe'] });
+const run = spawnSync('npx', ['wrangler', 'deploy', ...process.argv.slice(2)], { encoding: 'utf8', shell: true, stdio: ['inherit', 'pipe', 'pipe'] });
 const out = `${run.stdout ?? ''}\n${run.stderr ?? ''}`;
 process.stdout.write(out);
 if (run.status !== 0) {
