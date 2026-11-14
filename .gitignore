@@ -10,3 +10,6 @@
 # scratch and editor files
 /tools/tmp/
 /.vscode/
+
+# Epic Online Services keys (never commit; the repo is public)
+/eos_credentials.cfg
