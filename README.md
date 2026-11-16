@@ -32,6 +32,8 @@ Up to 8 players per room. Everyone needs the same version of the game.
 
 ## Modes
 
+Walls, cover and glass can be shot and blown apart: blast your own way into a building.
+
 - **Free-for-All:** everyone for themselves. First to 30 pops wins.
 - **Team Deathmatch:** 4 v 4, first team to 50.
 - **Toy Box Takeover:** hold the moving toy box to wind up your team's key.
