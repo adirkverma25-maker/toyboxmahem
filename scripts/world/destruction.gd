@@ -1,0 +1,219 @@
+class_name Destruction
+extends Node3D
+## Breakable walls, cover and glass. Every piece is a box with its own collider (on Phys.WORLD, so movement,
+## bullets and sight lines treat it as solid) and HP. Pieces are drawn merged per group (one wall run, one
+## prop), so a break only rebuilds that group's mesh. Ids follow build order, so host and guests agree.
+
+const CLASSES := {
+	"glass": {"hp": 20.0, "bullet": 1.0, "blast": 1.0},
+	"soft": {"hp": 220.0, "bullet": 1.0, "blast": 3.0},
+	"hard": {"hp": 700.0, "bullet": 0.0, "blast": 1.0},
+}
+## at or below this share of max HP a piece shows cracks
+const CRACKED := 0.6
+
+var phys: Phys
+## [{id, mn, mx, mat, cls, group, surf, hp, max_hp, broken, body}]
+var pieces: Array = []
+## false on online guests: damage only shows chips/cracks locally, the host decides what breaks
+var authority := true
+## (id: int) after a piece breaks
+var on_break := Callable()
+## (id: int, amount: float, kind: String) whenever a piece takes damage (guests forward it to the host)
+var on_damage := Callable()
+## (id: int, impulse_dir: Vector3) break effects (debris, dust, sound)
+var on_break_fx := Callable()
+## (id: int, point: Vector3, normal: Vector3, cracked_now: bool) hit effects
+var on_hit_fx := Callable()
+
+var _groups := {}  # group -> {node: Node3D, ids: Array}
+var _dark := {}  # Material -> darker twin for cracked pieces
+
+
+func _init(p: Phys) -> void:
+	phys = p
+	name = "Destruction"
+
+
+func add_piece(mn: Vector3, mx: Vector3, mat: Material, cls: String, group: String, surf: String) -> int:
+	var id := pieces.size()
+	var hp: float = CLASSES[cls].hp
+	var body := StaticBody3D.new()
+	body.name = "piece_%d" % id
+	body.collision_layer = Phys.WORLD
+	body.collision_mask = 0
+	body.set_meta("mat", surf if surf != "" else "plastic")
+	body.set_meta("piece", id)
+	var cs := CollisionShape3D.new()
+	var sh := BoxShape3D.new()
+	sh.size = (mx - mn).abs()
+	cs.shape = sh
+	body.add_child(cs)
+	body.position = (mn + mx) / 2
+	phys.add_child(body)
+	pieces.append({"id": id, "mn": mn, "mx": mx, "mat": mat, "cls": cls, "group": group, "surf": surf,
+		"hp": hp, "max_hp": hp, "broken": false, "body": body})
+	if not _groups.has(group):
+		_groups[group] = {"node": null, "ids": []}
+	_groups[group].ids.append(id)
+	return id
+
+
+## Draw every group (call once after the arena is built).
+func build() -> void:
+	for g in _groups:
+		_rebuild(g)
+
+
+func is_broken(id: int) -> bool:
+	return id >= 0 and id < pieces.size() and pieces[id].broken
+
+
+func is_cracked(id: int) -> bool:
+	var p: Dictionary = pieces[id]
+	return not p.broken and p.hp <= p.max_hp * CRACKED
+
+
+## Damage a piece. kind: "bullet" or "blast". Returns true if this broke it.
+func damage(id: int, amount: float, kind: String, point: Vector3, normal: Vector3) -> bool:
+	if id < 0 or id >= pieces.size() or amount <= 0:
+		return false
+	var p: Dictionary = pieces[id]
+	if p.broken:
+		return false
+	var dmg: float = amount * float(CLASSES[p.cls][kind])
+	if dmg <= 0:
+		if on_hit_fx.is_valid():
+			on_hit_fx.call(id, point, normal, false)
+		return false
+	if on_damage.is_valid():
+		on_damage.call(id, amount, kind)
+	var was_cracked := is_cracked(id)
+	if not authority:
+		if on_hit_fx.is_valid():
+			on_hit_fx.call(id, point, normal, false)
+		return false
+	p.hp = maxf(0.0, p.hp - dmg)
+	if p.hp <= 0:
+		break_piece(id, -normal)
+		return true
+	var cracked_now := is_cracked(id) and not was_cracked
+	if cracked_now:
+		_rebuild(p.group)
+	if on_hit_fx.is_valid():
+		on_hit_fx.call(id, point, normal, cracked_now)
+	return false
+
+
+func break_piece(id: int, impulse_dir: Vector3) -> void:
+	if id < 0 or id >= pieces.size() or pieces[id].broken:
+		return
+	var p: Dictionary = pieces[id]
+	p.broken = true
+	p.hp = 0.0
+	var body: StaticBody3D = p.body
+	body.collision_layer = 0
+	body.process_mode = Node.PROCESS_MODE_DISABLED
+	_rebuild(p.group)
+	if on_break_fx.is_valid():
+		on_break_fx.call(id, impulse_dir)
+	if on_break.is_valid():
+		on_break.call(id)
+
+
+func broken_ids() -> PackedInt32Array:
+	var out := PackedInt32Array()
+	for p in pieces:
+		if p.broken:
+			out.append(p.id)
+	return out
+
+
+## Break every listed piece that is still standing (host -> guest sync; unknown ids are ignored).
+func apply_broken(ids: Array) -> void:
+	for i in ids:
+		var id := int(i)
+		if id >= 0 and id < pieces.size() and not pieces[id].broken:
+			break_piece(id, Vector3.ZERO)
+
+
+## Every piece back to full HP with its collider, for a new match.
+func reset() -> void:
+	var dirty := {}
+	for p in pieces:
+		if p.broken or p.hp < p.max_hp:
+			dirty[p.group] = true
+		p.broken = false
+		p.hp = p.max_hp
+		var body: StaticBody3D = p.body
+		body.collision_layer = Phys.WORLD
+		body.process_mode = Node.PROCESS_MODE_INHERIT
+	for g in dirty:
+		_rebuild(g)
+
+
+## Standing pieces whose box comes within r of center.
+func pieces_in_sphere(center: Vector3, r: float) -> Array[int]:
+	var out: Array[int] = []
+	for p in pieces:
+		if p.broken:
+			continue
+		if closest_point(p.id, center).distance_to(center) <= r:
+			out.append(p.id)
+	return out
+
+
+func closest_point(id: int, to: Vector3) -> Vector3:
+	var p: Dictionary = pieces[id]
+	return to.clamp(p.mn, p.mx)
+
+
+func piece_of(collider: Object) -> int:
+	if collider and collider.has_meta("piece"):
+		return int(collider.get_meta("piece"))
+	return -1
+
+
+## Changes whenever the set of breakable pieces changes (part of the nav cache key).
+func fingerprint() -> int:
+	var parts := PackedStringArray()
+	for p in pieces:
+		parts.append("%s%s%s" % [(p.mn as Vector3).snapped(Vector3.ONE * 0.01), (p.mx as Vector3).snapped(Vector3.ONE * 0.01), p.cls])
+	return hash("|".join(parts))
+
+
+func _darker(mat: Material) -> Material:
+	if not _dark.has(mat):
+		var m := mat
+		if mat is StandardMaterial3D:
+			var s := (mat as StandardMaterial3D).duplicate() as StandardMaterial3D
+			s.albedo_color = s.albedo_color.darkened(0.25)
+			m = s
+		_dark[mat] = m
+	return _dark[mat]
+
+
+func _rebuild(group: String) -> void:
+	var g: Dictionary = _groups[group]
+	if g.node:
+		(g.node as Node).queue_free()
+	var n := Node3D.new()
+	n.name = "group_" + group.validate_node_name()
+	add_child(n)
+	g.node = n
+	var b := Batcher.new()
+	for id in g.ids:
+		var p: Dictionary = pieces[id]
+		if p.broken:
+			continue
+		var size: Vector3 = p.mx - p.mn
+		var mat: Material = p.mat
+		if is_cracked(id):
+			mat = _darker(mat)
+		var geo: Geo
+		if mat is BaseMaterial3D and (mat as BaseMaterial3D).albedo_texture != null:
+			geo = Geo.tiled_box(size.x, size.y, size.z, 1.0 / 3)
+		else:
+			geo = Geo.box(size.x, size.y, size.z)
+		b.add_at(geo, mat, (p.mn + p.mx) / 2)
+	b.build(n)

@@ -5,11 +5,24 @@ extends RefCounted
 var batch: Batcher
 var phys: Phys
 var studs: Array = []
+## breakable pieces go here (null: they are built as ordinary static boxes)
+var destruction: Destruction
 
 
 func _init(b: Batcher, p: Phys) -> void:
 	batch = b
 	phys = p
+	if p and p.has_meta("destruction"):
+		destruction = p.get_meta("destruction")
+
+
+## A box that can be shot or blown apart. cls: glass | soft | hard; pieces in one group share a mesh.
+## Returns the piece id, or -1 when this map isn't destructible (then it's a normal static box).
+func breakable_box(mn: Array, mx: Array, mat: Material, cls: String, group: String, surf := "wood") -> int:
+	if destruction == null:
+		box(mn, mx, mat, surf)
+		return -1
+	return destruction.add_piece(v(mn), v(mx), mat, cls, group, surf)
 
 
 static func v(a) -> Vector3:

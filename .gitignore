@@ -13,3 +13,6 @@
 
 # Epic Online Services keys (never commit; the repo is public)
 /eos_credentials.cfg
+
+# plan-execution scratch
+/.superpowers/
