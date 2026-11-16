@@ -63,7 +63,8 @@ Each class has its own gadgets too; they arrive in the next update.
 | Revive teammate, grab a zipline | E | X |
 | Switch weapon | 1 / 2 | Y |
 | Abilities | Q / F | RB / LB |
-| Melee (sword / spear) | V | Right stick click |
+| Melee: quick swing | V | Right stick click |
+| Melee: take it out (then click to swing) | 2 or mouse wheel (1 = blaster) | Y |
 | Scoreboard | Tab | View |
 | Pause | Esc | Menu |
 

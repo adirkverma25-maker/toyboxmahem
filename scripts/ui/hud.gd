@@ -631,17 +631,17 @@ func update(dt: float, now: float, p: Player, actors: Array, m: Match, cam: Came
 	if ws:
 		var other = a.weapons[1 if a.slot == 0 else 0]
 		var inf := a.has_buff("infinite", now)
-		var key := "%s|%d|%d|%d|%s|%s|%s|%s|%s%s%s" % [ws.id, ceili(ws.mag), ws.reserve, a.slot, other.id if other else "", inf, ws.lockout, GInput.using_pad, GInput.action_name("swap"), GInput.action_name("weapon1"), GInput.action_name("weapon2")]
+		var key := "%s|%d|%d|%d|%s|%s|%s|%s|%s%s%s" % [ws.id, ceili(ws.mag), ws.reserve, a.slot, other.id if other else "", inf, ws.lockout, GInput.using_pad, GInput.action_name("swap"), GInput.action_name("weapon1"), GInput.action_name("weapon2")] + "|%s|%s" % [a.melee_held, a.cls]
 		if key != last_weapon_key:
 			last_weapon_key = key
 			var lowm: bool = ws.mag <= ws.cfg.magSize * 0.25
 			var res: String = ("cooling" if ws.lockout else "energy") if ws.is_energy() else ("∞" if inf else str(ws.reserve))
 			var cc: String = ws.cfg.colors.accent if ws.cfg.colors.main in ["#1d1d1f", "#f2f7ff"] else ws.cfg.colors.main
-			w_name.text = ws.cfg.name
+			w_name.text = a.melee_def().name.to_upper() if a.melee_held else ws.cfg.name
 			w_name.add_theme_color_override("font_color", U.col(cc))
-			w_mag.text = str(ceili(ws.mag))
+			w_mag.text = "" if a.melee_held else str(ceili(ws.mag))
 			w_mag.add_theme_color_override("font_color", UI.PINK if lowm else UI.PAPER)
-			w_res.text = "/ " + res
+			w_res.text = "" if a.melee_held else "/ " + res
 			w_energy.visible = ws.is_energy()
 			for c in w_slots.get_children():
 				c.queue_free()
@@ -655,6 +655,14 @@ func update(dt: float, now: float, p: Player, actors: Array, m: Match, cam: Came
 				var kk := _slot_key(i, a.slot)
 				sp.add_child(UI.rich(("[bgcolor=#fff8ec][color=#1a1030][b] %s [/b][/color][/bgcolor] " % kk if kk != "" else "") + w.cfg.name, 13, null, true))
 				w_slots.add_child(sp)
+			# the melee weapon: 2 (or swap) to hold it, the melee key for a quick swing
+			var md: Dictionary = a.melee_def()
+			var mon := a.melee_held
+			var ms := UI.panel(UI.sb(Color(1, 210 / 255.0, 63 / 255.0, 0.3) if mon else Color(43 / 255.0, 27 / 255.0, 77 / 255.0, 0.6), 10, 0, Color.TRANSPARENT, Vector4(9, 3, 9, 3)))
+			ms.modulate.a = 1.0 if mon else 0.65
+			var mk := "%s / %s" % [GInput.action_name("weapon2"), GInput.action_name("melee")]
+			ms.add_child(UI.rich("[bgcolor=#fff8ec][color=#1a1030][b] %s [/b][/color][/bgcolor] %s" % [mk, md.name.to_upper()], 13, null, true))
+			w_slots.add_child(ms)
 		if ws.is_energy():
 			w_energy.frac = ws.mag / ws.cfg.magSize
 			w_energy.queue_redraw()

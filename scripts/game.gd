@@ -246,6 +246,9 @@ func _autotest() -> void:
 		if a.begins_with("--online="):
 			_online_test(a.trim_prefix("--online="), m if m != "" else "ffa", secs, shots)
 			return
+	if screen == "meleetest":
+		await MeleeTest.run(self)
+		return
 	if screen == "destruct":
 		await DestructTest.run(self)
 		return

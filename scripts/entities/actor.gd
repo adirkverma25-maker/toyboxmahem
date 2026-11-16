@@ -106,6 +106,8 @@ var cloaked := false
 var cloak_start := 0.0
 ## seconds left on the punch animation
 var melee_t := 0.0
+## the sword / spear is in hand (instead of the blaster): fire swings it
+var melee_held := false
 ## {anchor, start, check_at, check_dist, climbing} or null
 var grapple = null
 # ---- revive (team modes)

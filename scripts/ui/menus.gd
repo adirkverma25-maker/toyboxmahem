@@ -622,7 +622,7 @@ func collection(back_to: String) -> void:
 			abil_slot = 0
 			collection(back_to), "CLASS", 22))
 	v.add_child(crow)
-	if not Cfg.CLASSES[cls].guns.has(selected_weapon):
+	if not Cfg.CLASSES[cls].guns.has(selected_weapon) and selected_weapon != Cfg.CLASSES[cls].melee:
 		selected_weapon = Loadout.gun()
 	# abilities: Lights pick 2 of 3, Mediums always have both of theirs
 	var ab := Loadout.abilities()
@@ -649,8 +649,8 @@ func collection(back_to: String) -> void:
 				abil_slot = 0 if abil_slot else 1
 				collection(back_to), "", 15, 12))
 		v.add_child(chips)
-	# equipped blaster + gadget
-	var eq := UI.grid(2, 10, 10)
+	# equipped blaster, melee weapon and gadget
+	var eq := UI.grid(3, 10, 10)
 	var gid := Loadout.gun()
 	var gcard := UI.panel(UI.sb(Color(0, 0, 0, 0.22), 14, 3, U.col(_wcolor(gid)), Vector4(12, 8, 12, 8)))
 	var gv := UI.vbox(0)
@@ -660,6 +660,15 @@ func collection(back_to: String) -> void:
 	gcard.add_child(gv)
 	gcard.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	eq.add_child(gcard)
+	var mid: String = Cfg.CLASSES[cls].melee
+	var mcard := UI.panel(UI.sb(Color(0, 0, 0, 0.22), 14, 3, U.col(Cfg.MELEE[mid].color), Vector4(12, 8, 12, 8)))
+	var mv := UI.vbox(0)
+	mv.add_child(UI.label("MELEE", UI.BODY, 12, Color(UI.PAPER, 0.75)))
+	mv.add_child(UI.label(Cfg.MELEE[mid].name, UI.DISPLAY, 19))
+	mv.add_child(UI.label("Always carried: %s to hold, %s to swing" % [GInput.action_name("weapon2"), GInput.action_name("melee")], UI.BODY, 13, Color(UI.PAPER, 0.85)))
+	mcard.add_child(mv)
+	mcard.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	eq.add_child(mcard)
 	var dcard := UI.panel(UI.sb(Color(0, 0, 0, 0.22), 14, 3, Color(1, 1, 1, 0.25), Vector4(12, 8, 12, 8)))
 	var dv := UI.vbox(0)
 	dv.add_child(UI.label("GADGET  -  COMING SOON", UI.BODY, 12, Color(UI.PAPER, 0.75)))
@@ -697,6 +706,26 @@ func collection(back_to: String) -> void:
 			selected_weapon = id
 			collection(back_to))
 		wl.add_child(b)
+	# the class's melee weapon (always carried)
+	wl.add_child(UI.label("MELEE", UI.BODY, 12, Color(UI.PAPER, 0.75)))
+	var mel: String = Cfg.CLASSES[cls].melee
+	var mst := UI.sb(Color(1, 1, 1, 0.18) if selected_weapon == mel else Color(1, 1, 1, 0.07), 14, 0, Color.TRANSPARENT, Vector4(12, 9, 12, 6))
+	mst.border_width_left = 8
+	mst.border_color = U.col(Cfg.MELEE[mel].color)
+	var mb := Button.new()
+	mb.text = Cfg.MELEE[mel].name.to_upper()
+	mb.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	mb.add_theme_font_override("font", UI.DISPLAY)
+	mb.add_theme_font_size_override("font_size", 19)
+	for st in ["normal", "hover", "pressed"]:
+		mb.add_theme_stylebox_override(st, mst)
+	mb.add_theme_stylebox_override("focus", UI._focus_ring(14))
+	mb.add_theme_color_override("font_color", UI.SUN if selected_weapon == mel else UI.PAPER)
+	mb.add_theme_color_override("font_hover_color", UI.SUN)
+	UI._wire(mb, func():
+		selected_weapon = mel
+		collection(back_to))
+	wl.add_child(mb)
 	colls.add_child(wl)
 	var view := UI.blister(Vector4(16, 12, 16, 16))
 	view.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -747,6 +776,8 @@ func _find_redeem_out(msg: String) -> void:
 
 
 static func _wcolor(id: String) -> String:
+	if Cfg.MELEE.has(id):
+		return Cfg.MELEE[id].color
 	var c: Dictionary = Cfg.WEAPONS[id].colors
 	return c.accent if c.main in ["#1d1d1f", "#f2f7ff"] else c.main
 
@@ -777,7 +808,15 @@ func _preview_view() -> Control:
 	cam.far = 50
 	vp.add_child(cam)
 	cam.look_at_from_position(Vector3(0, 0.35, 2.9), Vector3.ZERO, Vector3.UP)
-	var m := WeaponModel.build(selected_weapon)
+	var m: Node3D
+	if Cfg.MELEE.has(selected_weapon):
+		# lay the sword / spear sideways across the view (wrapped so its turn counts when it's sized)
+		m = Node3D.new()
+		var inner := MeleeModel.build(selected_weapon)
+		inner.rotation = Vector3(0, PI / 2, 0.35)
+		m.add_child(inner)
+	else:
+		m = WeaponModel.build(selected_weapon)
 	var aabb := _model_aabb(m)
 	var sz := aabb.size.length()
 	var s := 1.6 / maxf(0.01, sz)
@@ -811,6 +850,9 @@ static func _model_aabb(n: Node3D) -> AABB:
 
 func _weapon_info(vv: VBoxContainer, back_to: String) -> void:
 	var id := selected_weapon
+	if Cfg.MELEE.has(id):
+		_melee_info(vv, id)
+		return
 	var w: Dictionary = Cfg.WEAPONS[id]
 	var owned: bool = Progress.owns(id)
 	var tier: String = Progress.tier_of(id)
@@ -891,6 +933,43 @@ func _weapon_info(vv: VBoxContainer, back_to: String) -> void:
 			need.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			row.add_child(need)
 		vv.add_child(row)
+
+
+## The melee weapon's page in Loadout: what it does and how to use it.
+func _melee_info(vv: VBoxContainer, id: String) -> void:
+	var md: Dictionary = Cfg.MELEE[id]
+	vv.add_child(UI.label(md.name, UI.DISPLAY, 34, U.col(md.color)))
+	vv.add_child(UI.rich("[color=#fff8ecbf]Melee - always carried by %ss[/color]" % ("Light" if id == "sword" else "Medium"), 15))
+	vv.add_child(UI.para("Quick, wide swings that hit everyone in front of you." if id == "sword" else "Slower thrusts with long reach that hit everyone in front of you.", 16, 1.0))
+	var meters := [
+		["Damage", minf(1, md.damage / 81.0), str(int(md.damage))],
+		["Reach", minf(1, md.range / 5.0), "%.1f m" % md.range],
+		["Swing speed", clampf(1.2 - md.swing, 0.05, 1), "%.2f s" % md.swing],
+		["Width", minf(1, md.arcDeg / 120.0), "%d°" % int(md.arcDeg)],
+	]
+	var g := UI.grid(3, 10, 6)
+	for mt in meters:
+		var n := UI.label(mt[0], UI.BODY, 15)
+		n.custom_minimum_size.x = 110
+		var bar := HUD.Bar.new()
+		bar.custom_minimum_size = Vector2(0, 12)
+		bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		bar.bg = Color(1, 1, 1, 0.12)
+		bar.border = 0
+		bar.radius = 99
+		bar.frac = mt[1]
+		bar.ghost = mt[1]
+		bar.fill_a = U.col(md.color)
+		bar.fill_b = U.col(md.color)
+		var t := UI.label(mt[2], UI.BODY, 15)
+		t.custom_minimum_size.x = 70
+		t.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		g.add_child(n)
+		g.add_child(bar)
+		g.add_child(t)
+	vv.add_child(g)
+	vv.add_child(UI.para("Press %s to take it out (then left click to swing, %s for your blaster), or %s for a quick swing any time." % [GInput.action_name("weapon2"), GInput.action_name("weapon1"), GInput.action_name("melee")], 14, 0.9))
 
 
 # ------------------------------------------------------------------ settings

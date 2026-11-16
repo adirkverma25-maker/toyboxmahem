@@ -85,6 +85,8 @@ func switch_to(s: int, now: float) -> void:
 
 ## Called when the player respawns.
 func on_spawn() -> void:
+	actor.melee_held = false
+	vm.hold_melee(Cfg.CLASSES[actor.cls].melee, false)
 	recoil_pitch = 0
 	recoil_yaw = 0
 	trauma = 0
@@ -212,12 +214,25 @@ func update(dt: float, now: float) -> void:
 	# reload, unless it shares a button with revive and a downed teammate is right here
 	var reload_pressed := input.act_pressed("reload") and not (interact_prompt != "" and input.act("revive"))
 	if a.alive and ws:
+		# 1 = blaster, 2 = sword / spear in hand, swap / mouse wheel flips between them
+		var was_held := a.melee_held
 		if input.act_pressed("weapon1"):
-			switch_to(0, now)
+			a.melee_held = false
 		if input.act_pressed("weapon2"):
-			switch_to(1, now)
+			a.melee_held = true
 		if input.wheel != 0 or input.act_pressed("swap"):
-			switch_to(1 if a.slot == 0 else 0, now)
+			a.melee_held = not a.melee_held
+		if a.melee_held != was_held:
+			vm.hold_melee(Cfg.CLASSES[a.cls].melee, a.melee_held)
+			audio.weapon_switch()
+			if not a.melee_held:
+				equip_current(false)
+	if a.alive and ws and a.melee_held:
+		a.ads = 0
+		if input.act_pressed("fire") and Abilities.try_melee(a, now, {"combat": combat, "phys": deps.phys, "audio": audio}):
+			vm.melee(Cfg.CLASSES[a.cls].melee, a.melee_def().swing)
+			add_trauma(0.1)
+	elif a.alive and ws:
 		var cw := a.weapon()
 		if reload_pressed:
 			if cw.is_energy():
