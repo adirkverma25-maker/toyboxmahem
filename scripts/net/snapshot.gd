@@ -44,7 +44,9 @@ const GZ := 36
 const BEST_STREAK := 37
 ## class: 0 light, 1 medium (which melee weapon the toy swings)
 const CLS := 38
-const LENGTH := 39
+## fighting with the melee weapon instead of a blaster
+const MELEE_HELD := 39
+const LENGTH := 40
 
 ## fields that blend smoothly between snapshots; everything else steps to the newer value
 const LERP := [X, Y, Z, PITCH, CROUCH, ADS, SPEED]
@@ -122,6 +124,7 @@ static func pack_actor(a: Actor, now: float) -> Array:
 	p[CLOAKED] = _b(a.cloaked)
 	p[MELEE_T] = r2(a.melee_t)
 	p[CLS] = 1 if a.cls == "medium" else 0
+	p[MELEE_HELD] = _b(a.melee_held)
 	p[RESPAWN] = NO_RESPAWN if a.respawn_at < 0 else r2(a.respawn_at - now)
 	p[REVIVE_T] = r2(a.revive_t)
 	p[TURBO] = _left(a.buffs.turbo, now)
@@ -161,6 +164,8 @@ static func unpack_actor_into(p: Array, a: Actor, now: float) -> void:
 	a.melee_t = p[MELEE_T]
 	if p.size() > CLS:
 		a.cls = "medium" if p[CLS] > 0 else "light"
+	if p.size() > MELEE_HELD:
+		a.melee_held = p[MELEE_HELD] > 0
 	if p[GRAPPLE] > 0:
 		var anchor := Vector3(p[GX], p[GY], p[GZ])
 		if a.grapple != null:

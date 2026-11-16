@@ -255,13 +255,13 @@ const MOVE := {
 ## Light: quick and fragile, movement tricks. Medium: tougher and slower, no Dash or Spring Hook, no grenades.
 const CLASSES := {
 	"light": {
-		"name": "Light", "health": 100.0, "speed": 1.1, "pick_abilities": true, "melee": "sword",
+		"name": "Light", "health": 100.0, "speed": 1.1, "melee": "sword",
 		"guns": ["foamFury", "rapidRascal", "bubbleBlaster", "thunderspring", "plungerBow", "starlightZapper", "plasti9"],
-		"abilities": ["dash", "grapple", "cloak"],
+		"abilities": ["dash", "grapple"],
 		"gadgets": ["glitchJug", "stairs", "fragGrenade", "pyroGrenade"],
 	},
 	"medium": {
-		"name": "Medium", "health": 150.0, "speed": 0.9, "pick_abilities": false, "melee": "spear",
+		"name": "Medium", "health": 150.0, "speed": 0.9, "melee": "spear",
 		"guns": ["brickbreaker", "popcornPopper", "crayonCannon", "jackBlaster", "walloper"],
 		"abilities": ["shield", "cloak"],
 		"gadgets": ["turret", "healthInfuser", "breachDrill", "explosiveMine", "pyroMine"],
@@ -269,18 +269,51 @@ const CLASSES := {
 }
 const CLASS_ORDER := ["light", "medium"]
 
+## Gadgets (the gadget key). Thrown along your aim with the projectile system, so they explode, sync online and
+## break walls like any explosive. "mine": sticks where it lands and goes off when an enemy comes close.
+## "fire" (in explosion): leaves a burning patch that hurts enemies standing in it.
+## pieceDamage = what the blast does to walls and props (two frags take down a hard wall).
+const GADGETS := {
+	"fragGrenade": {"id": "fragGrenade", "gadget": true, "name": "Frag Grenade", "short": "Frag", "cooldown": 14.0,
+		"blurb": "Thrown in an arc, goes off on impact. Big blast; two take down a wall.",
+		"damage": 20.0, "headMult": 1.0, "pellets": 1,
+		"projectile": {"kind": "projectile", "visual": "grenade", "speed": 21.0, "gravity": 18.0, "radius": 0.14, "life": 2.4},
+		"explosion": {"radius": 4.5, "maxDamage": 110.0, "selfDamageMult": 0.5, "pieceDamage": 380.0},
+		"colors": {"main": "#4f6b3a", "accent": "#ffd23f", "glow": "#ffb347", "tracer": "#556b2f"}},
+	"pyroGrenade": {"id": "pyroGrenade", "gadget": true, "name": "Pyro Grenade", "short": "Pyro", "cooldown": 18.0,
+		"blurb": "Bursts into a patch of fire that burns anyone standing in it for 7 seconds.",
+		"damage": 10.0, "headMult": 1.0, "pellets": 1,
+		"projectile": {"kind": "projectile", "visual": "grenade", "speed": 21.0, "gravity": 18.0, "radius": 0.14, "life": 2.4},
+		"explosion": {"radius": 2.5, "maxDamage": 15.0, "selfDamageMult": 0.3, "pieceDamage": 40.0, "fire": {"radius": 4.0, "dps": 22.0, "time": 7.0}},
+		"colors": {"main": "#d62828", "accent": "#ffd23f", "glow": "#ff6b2b", "tracer": "#d62828"}},
+	"explosiveMine": {"id": "explosiveMine", "gadget": true, "name": "Explosive Mine", "short": "Mine", "cooldown": 12.0,
+		"blurb": "Tossed a few metres ahead; sticks where it lands and blows when an enemy steps close. Two at a time.",
+		"damage": 0.0, "headMult": 1.0, "pellets": 1,
+		"projectile": {"kind": "projectile", "visual": "mine", "speed": 9.0, "gravity": 18.0, "radius": 0.16, "life": 4.0},
+		"mine": {"arm": 0.8, "trigger": 2.4, "life": 60.0, "max": 2},
+		"explosion": {"radius": 3.8, "maxDamage": 120.0, "selfDamageMult": 0.5, "pieceDamage": 360.0},
+		"colors": {"main": "#3d405b", "accent": "#ff4d6d", "glow": "#ffb347", "tracer": "#3d405b"}},
+	"pyroMine": {"id": "pyroMine", "gadget": true, "name": "Pyro Mine", "short": "Fire Mine", "cooldown": 16.0,
+		"blurb": "A mine that bursts into fire when an enemy comes close. Two at a time.",
+		"damage": 0.0, "headMult": 1.0, "pellets": 1,
+		"projectile": {"kind": "projectile", "visual": "mine", "speed": 9.0, "gravity": 18.0, "radius": 0.16, "life": 4.0},
+		"mine": {"arm": 0.8, "trigger": 2.4, "life": 60.0, "max": 2},
+		"explosion": {"radius": 2.5, "maxDamage": 15.0, "selfDamageMult": 0.3, "pieceDamage": 40.0, "fire": {"radius": 3.5, "dps": 22.0, "time": 6.0}},
+		"colors": {"main": "#9d0208", "accent": "#ffd23f", "glow": "#ff6b2b", "tracer": "#9d0208"}},
+}
+
 ## Melee (the melee key): every toy swings its class's toy weapon. Anyone whose body is in the zone gets hit:
 ## within `range` (plus their body radius) and inside `arcDeg` (total width) of where you're facing.
 const MELEE := {
-	"sword": {"id": "sword", "name": "Toy Sword", "damage": 55.0, "range": 3.2, "arcDeg": 90.0, "swing": 0.55, "knockback": 5.0, "color": "#c9d6e3"},
-	"spear": {"id": "spear", "name": "Toy Spear", "damage": 70.0, "range": 4.2, "arcDeg": 50.0, "swing": 0.8, "knockback": 7.0, "color": "#d9a066"},
+	"sword": {"id": "sword", "name": "Toy Sword", "damage": 55.0, "range": 3.2, "arcDeg": 90.0, "swing": 0.3, "knockback": 5.0, "color": "#c9d6e3"},
+	"spear": {"id": "spear", "name": "Toy Spear", "damage": 70.0, "range": 4.2, "arcDeg": 50.0, "swing": 0.7, "knockback": 7.0, "color": "#d9a066"},
 }
 
 
 ## Which class a blaster belongs to.
 static func class_of_gun(wid: String) -> String:
 	for c in CLASS_ORDER:
-		if CLASSES[c].guns.has(wid):
+		if CLASSES[c].guns.has(wid) or CLASSES[c].melee == wid:
 			return c
 	return "light"
 

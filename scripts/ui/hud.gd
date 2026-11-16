@@ -4,7 +4,7 @@ extends Control
 ## weapon + ammo, abilities, timer and scores, kill feed, announcements, death screen, scoreboard, team tags,
 ## objective markers. Corner panels scale like the original's CSS zoom; screen-space marks stay pixel-sized.
 
-const ABIL_UI := [["dash", "Dash"], ["grapple", "Hook"], ["cloak", "Cloak"], ["shield", "Shield"]]
+const ABIL_UI := [["dash", "Dash"], ["grapple", "Hook"], ["cloak", "Cloak"], ["shield", "Shield"], ["fragGrenade", "Frag"], ["pyroGrenade", "Pyro"], ["explosiveMine", "Mine"], ["pyroMine", "Fire Mine"]]
 const STREAKS := {2: "Double pop!", 3: "Triple pop!", 4: "Toy box tantrum!", 5: "Unstoppable toy!", 7: "Playroom legend!", 10: "Toy of the year!"}
 const FX_SHADER := preload("res://shaders/hud_fx.gdshader")
 
@@ -655,34 +655,47 @@ func update(dt: float, now: float, p: Player, actors: Array, m: Match, cam: Came
 				var kk := _slot_key(i, a.slot)
 				sp.add_child(UI.rich(("[bgcolor=#fff8ec][color=#1a1030][b] %s [/b][/color][/bgcolor] " % kk if kk != "" else "") + w.cfg.name, 13, null, true))
 				w_slots.add_child(sp)
-			# the melee weapon: 2 (or swap) to hold it, the melee key for a quick swing
-			var md: Dictionary = a.melee_def()
-			var mon := a.melee_held
-			var ms := UI.panel(UI.sb(Color(1, 210 / 255.0, 63 / 255.0, 0.3) if mon else Color(43 / 255.0, 27 / 255.0, 77 / 255.0, 0.6), 10, 0, Color.TRANSPARENT, Vector4(9, 3, 9, 3)))
-			ms.modulate.a = 1.0 if mon else 0.65
-			var mk := "%s / %s" % [GInput.action_name("weapon2"), GInput.action_name("melee")]
-			ms.add_child(UI.rich("[bgcolor=#fff8ec][color=#1a1030][b] %s [/b][/color][/bgcolor] %s" % [mk, md.name.to_upper()], 13, null, true))
-			w_slots.add_child(ms)
 		if ws.is_energy():
 			w_energy.frac = ws.mag / ws.cfg.magSize
 			w_energy.queue_redraw()
+	elif a.melee_held:
+		# melee instead of a blaster: its name, no ammo
+		var mkey := "melee|" + a.cls
+		if mkey != last_weapon_key:
+			last_weapon_key = mkey
+			var md: Dictionary = a.melee_def()
+			w_name.text = md.name.to_upper()
+			w_name.add_theme_color_override("font_color", U.col(md.color))
+			w_mag.text = ""
+			w_res.text = ""
+			w_energy.visible = false
+			for c in w_slots.get_children():
+				c.queue_free()
 	# abilities
 	for i in abil_icons.size():
 		var e: Dictionary = abil_icons[i]
 		var id: String = e.id
-		var slot := a.abilities.find(id)
+		var is_gadget := Cfg.GADGETS.has(id)
+		var slot := (1 if a.gadget == id else -1) if is_gadget else a.abilities.find(id)
 		e.col.visible = slot >= 0
 		if slot < 0:
 			continue
 		abil_row.move_child(e.col, mini(slot, abil_row.get_child_count() - 1))
-		var k := GInput.action_name("ability2" if slot else "ability1", true)
+		var k := GInput.action_name("gadget" if is_gadget else "ability1", true)
 		var icon: AbilIcon = e.icon
 		icon.key = "–" if k == "unbound" else k
 		var left := 0.0
 		var total := 1.0
 		var active := false
 		var active_frac := 0.0
-		match id:
+		if is_gadget:
+			left = a.gadget_ready_at - now
+			total = Cfg.GADGETS[id].cooldown
+		else:
+			pass
+		match "" if is_gadget else id:
+			"":
+				pass
 			"dash":
 				left = a.dash_ready_at - now
 				total = Cfg.MOVE.dashCooldown

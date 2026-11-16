@@ -15,8 +15,8 @@ static func _prog() -> Node:
 
 ## Default picks per class (free starter blasters only).
 const DEFAULTS := {
-	"light": {"gun": "foamFury", "abilities": ["dash", "grapple"]},
-	"medium": {"gun": "jackBlaster", "abilities": ["shield", "cloak"]},
+	"light": {"gun": "foamFury", "abilities": ["dash"], "gadget": "fragGrenade"},
+	"medium": {"gun": "jackBlaster", "abilities": ["shield"], "gadget": "explosiveMine"},
 }
 
 
@@ -38,10 +38,10 @@ static func _data() -> Dictionary:
 	for x in str(Settings.get_v("abilities")).split(","):
 		if Cfg.CLASSES.light.abilities.has(x) and not ab.has(x):
 			ab.append(x)
-	for x in ["dash", "grapple", "cloak"]:
-		if ab.size() < 2 and not ab.has(x):
+	for x in ["dash", "grapple"]:
+		if ab.size() < 1 and not ab.has(x):
 			ab.append(x)
-	d.light.abilities = ab.slice(0, 2)
+	d.light.abilities = ab.slice(0, 1)
 	Settings.set_v("loadouts", JSON.stringify(d))
 	if str(Settings.get_v("class")) == "":
 		Settings.set_v("class", c)
@@ -65,12 +65,19 @@ static func set_cls(c: String) -> void:
 		Settings.set_v("class", c)
 
 
-## The blaster for a class (default: the current class). Locked or wrong-class picks fall back to the class's
-## starter, so a loadout can never hold something you haven't unlocked or can't carry.
+## Everything a class can take as its one weapon: its blasters plus its melee weapon.
+static func weapons(c: String) -> Array:
+	return (Cfg.CLASSES[c].guns as Array) + [Cfg.CLASSES[c].melee]
+
+
+## The one weapon for a class (default: the current class): a blaster or the class's melee weapon. Locked or
+## wrong-class picks fall back to the class's starter, so a loadout can never hold something you can't carry.
 static func gun(c := "") -> String:
 	if c == "":
 		c = cls()
 	var g := str(_data()[c].get("gun", ""))
+	if g == Cfg.CLASSES[c].melee:
+		return g
 	if Cfg.CLASSES[c].guns.has(g) and _prog().owns(g):
 		return g
 	return DEFAULTS[c].gun
@@ -78,7 +85,7 @@ static func gun(c := "") -> String:
 
 static func set_gun(id: String) -> void:
 	var c := cls()
-	if not Cfg.CLASSES[c].guns.has(id) or not _prog().owns(id):
+	if id != Cfg.CLASSES[c].melee and (not Cfg.CLASSES[c].guns.has(id) or not _prog().owns(id)):
 		return
 	var d := _data()
 	d[c].gun = id
@@ -97,40 +104,44 @@ static func set_scope(id: String, s: String) -> void:
 	Settings.set_v("scopes", JSON.stringify(m))
 
 
-## The two equipped abilities for a class (default: the current one). Mediums always get Shield + Cloak;
-## Lights pick two of Dash, Spring Hook and Cloak.
+## The one ability for a class (default: the current one), as a one-item list.
+## Lights: Wind-Up Dash or Spring Hook. Mediums: Mesh Shield or Cloak.
 static func abilities(c := "") -> Array:
 	if c == "":
 		c = cls()
 	var allowed: Array = Cfg.CLASSES[c].abilities
-	if not Cfg.CLASSES[c].pick_abilities:
-		return allowed.slice(0, 2)
-	var uniq := []
 	for x in _data()[c].get("abilities", []):
-		if allowed.has(x) and not uniq.has(x):
-			uniq.append(x)
-	for x in DEFAULTS[c].abilities + allowed:
-		if uniq.size() < 2 and not uniq.has(x):
-			uniq.append(x)
-	return [uniq[0], uniq[1]]
+		if allowed.has(x):
+			return [x]
+	return [DEFAULTS[c].abilities[0]]
 
 
-## Put an ability in slot 0 or 1 (Light only). Picking the other slot's ability swaps them.
-static func set_ability(slot: int, id: String) -> void:
+static func set_ability(id: String) -> void:
 	var c := cls()
-	if not Cfg.CLASSES[c].pick_abilities or not Cfg.CLASSES[c].abilities.has(id):
+	if not Cfg.CLASSES[c].abilities.has(id):
 		return
-	var cur := abilities(c)
-	var other: String = cur[1 - slot]
-	var nxt := cur.duplicate()
-	nxt[slot] = id
-	if other == id:
-		nxt[1 - slot] = cur[slot]
 	var d := _data()
-	d[c].abilities = nxt
+	d[c].abilities = [id]
 	_save(d)
 
 
-## The gadget (the gadget update adds them): none yet.
-static func gadget(_c := "") -> String:
-	return ""
+## Gadgets a class can take right now (the rest of its list is still being made).
+static func gadgets_ready(c: String) -> Array:
+	return (Cfg.CLASSES[c].gadgets as Array).filter(func(g): return Cfg.GADGETS.has(g))
+
+
+## The one gadget for a class (default: the current one).
+static func gadget(c := "") -> String:
+	if c == "":
+		c = cls()
+	var g := str(_data()[c].get("gadget", ""))
+	return g if gadgets_ready(c).has(g) else DEFAULTS[c].gadget
+
+
+static func set_gadget(id: String) -> void:
+	var c := cls()
+	if not gadgets_ready(c).has(id):
+		return
+	var d := _data()
+	d[c].gadget = id
+	_save(d)

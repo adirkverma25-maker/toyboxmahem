@@ -246,6 +246,9 @@ func _autotest() -> void:
 		if a.begins_with("--online="):
 			_online_test(a.trim_prefix("--online="), m if m != "" else "ffa", secs, shots)
 			return
+	if screen == "gadgettest":
+		await GadgetTest.run(self)
+		return
 	if screen == "meleetest":
 		await MeleeTest.run(self)
 		return
@@ -644,7 +647,7 @@ func _register_events() -> void:
 		var victim: Actor = k.victim
 		var killer = k.killer
 		match_.on_kill(killer, victim)
-		var wname: String = "FALLING BLOCK" if k.weapon == "block" else (Cfg.MELEE[k.weapon].name.to_upper() if Cfg.MELEE.has(k.weapon) else Cfg.WEAPONS.get(k.weapon, {}).get("name", ""))
+		var wname: String = "FALLING BLOCK" if k.weapon == "block" else (Cfg.MELEE[k.weapon].name.to_upper() if Cfg.MELEE.has(k.weapon) else Cfg.GADGETS[k.weapon].name.to_upper() if Cfg.GADGETS.has(k.weapon) else Cfg.WEAPONS.get(k.weapon, {}).get("name", ""))
 		hud.kill_feed(killer, victim, wname, k.head, killer == pl or victim == pl)
 		if victim == pl and player:
 			player.on_death(killer)
@@ -1075,15 +1078,25 @@ func _respawn(a: Actor, initial := false, at = null) -> void:
 		a.model.scale_in = 0.01
 	elif a.is_player:
 		# your loadout from the menu (changes made mid-match apply here, on the next respawn)
-		var wid: String = training_gun if training_gun != "" else Loadout.gun()
-		a.give_weapon(wid, 0, Loadout.scope(wid))
+		var wid: String = training_gun if training_gun != "" else Loadout.gun(a.cls)
+		if Cfg.MELEE.has(wid):
+			a.weapons[0] = null  # melee instead of a blaster
+			a.melee_held = true
+		else:
+			a.give_weapon(wid, 0, Loadout.scope(wid))
+			a.melee_held = false
 		a.abilities = Loadout.abilities(a.cls)
+		a.gadget = Loadout.gadget(a.cls)
 		player.on_spawn()
-		a.weapon().equip(time, 0.3)
+		if a.weapon():
+			a.weapon().equip(time, 0.3)
 	else:
 		var bot: Bot = bot_by_actor[a]
 		a.give_weapon(Bot.pick_bot_loadout(bot.personality, bot.cls), 0)
+		a.melee_held = false
 		a.abilities = [] if bot.passive else Bot.pick_bot_abilities(bot.personality, bot.cls)
+		var gl := Loadout.gadgets_ready(bot.cls)
+		a.gadget = "" if bot.passive or gl.is_empty() else U.pick(gl)
 		bot.on_spawn(time)
 		a.model.visible = true
 		a.model.scale_in = 0.01
@@ -1687,7 +1700,7 @@ func _update_rigs(dt: float) -> void:
 		rig.rotation = Vector3(0, a.yaw + PI, 0)
 		rig.update(dt, b.anim_state(time) if b else Roster.actor_anim(a, time, remotes[a].reload if remotes.has(a) else 0.0), time)
 		rig.set_shimmer(a.is_protected(time), time)
-		rig.set_melee(a.melee_t, Cfg.CLASSES[a.cls].melee, a.melee_def().swing)
+		rig.set_melee(a.melee_t, Cfg.CLASSES[a.cls].melee, a.melee_def().swing, a.melee_held)
 		# cloaked toys: teammates see a ghost, enemies barely a shimmer (a bit more up close)
 		var me: Actor = player.actor if player else null
 		var op := 0.0
@@ -1893,6 +1906,13 @@ func drop_remote(a: Actor) -> void:
 	if a.model:
 		a.model.visible = false
 	hud.pickup("%s left the game" % a.name, "#fff6d8")
+
+
+## Show a gadget thrown in another game (it explodes and burns for the looks; that game deals the damage).
+func replay_gadget(a: Actor, s: Dictionary) -> void:
+	if not a.alive or not Cfg.GADGETS.has(str(s.get("id", ""))):
+		return
+	combat.throw_gadget(a, str(s.id), Snapshot.vec(s.origin), Snapshot.vec(s.dir).normalized(), "visual")
 
 
 ## Show a shot fired in another game (no damage).

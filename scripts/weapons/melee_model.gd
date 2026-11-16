@@ -1,9 +1,33 @@
 class_name MeleeModel
 ## The toy melee weapons (Cfg.MELEE): a plastic sword for Lights, a plastic spear for Mediums.
-## Built pointing down -Z with the grip at the origin, so a parent can swing or thrust it.
+## Built pointing down -Z with the grip at the origin. Swings are keyframed: wind-up, strike, follow-through,
+## recover. `pose` is first person (view space), `arm_dir` drives a toy's right arm in third person.
+
+## first-person keyframes: [time 0..1, euler (x, y, z), position]; the first/last key is the ready pose
+const VIEW_KEYS := {
+	"sword": [
+		[0.0, Vector3(0.25, -0.35, -0.55), Vector3(0.24, -0.26, -0.42)],
+		[0.22, Vector3(0.95, 0.95, -1.1), Vector3(0.36, 0.06, -0.3)],  # wind-up: up and back over the right shoulder
+		[0.5, Vector3(-0.55, -1.25, 0.7), Vector3(-0.22, -0.3, -0.5)],  # strike: a fast diagonal cut to lower left
+		[0.66, Vector3(-0.7, -1.45, 0.9), Vector3(-0.3, -0.36, -0.44)],  # follow-through
+		[1.0, Vector3(0.25, -0.35, -0.55), Vector3(0.24, -0.26, -0.42)],
+	],
+	"spear": [
+		[0.0, Vector3(0.12, -0.05, -0.1), Vector3(0.2, -0.24, -0.35)],
+		[0.3, Vector3(0.2, 0.06, -0.15), Vector3(0.24, -0.18, -0.08)],  # wind-up: drawn back, tip raised
+		[0.48, Vector3(0.02, 0.0, -0.05), Vector3(0.08, -0.14, -0.95)],  # thrust
+		[0.62, Vector3(0.02, 0.0, -0.05), Vector3(0.08, -0.15, -0.9)],  # hold
+		[1.0, Vector3(0.12, -0.05, -0.1), Vector3(0.2, -0.24, -0.35)],
+	],
+}
+## third-person keyframes: [time, arm direction in torso space (+Z forward), forearm bend]
+const ARM_KEYS := {
+	"sword": [[0.0, Vector3(-0.1, -0.2, 1), -0.2], [0.22, Vector3(0.6, 0.9, -0.1), -1.2], [0.5, Vector3(-0.8, -0.3, 0.9), -0.1], [0.66, Vector3(-0.9, -0.5, 0.6), -0.1], [1.0, Vector3(-0.1, -0.2, 1), -0.2]],
+	"spear": [[0.0, Vector3(-0.1, -0.1, 1), -0.4], [0.3, Vector3(0.1, 0.1, 0.4), -1.3], [0.48, Vector3(-0.05, 0.05, 1), 0.0], [0.62, Vector3(-0.05, 0.05, 1), 0.0], [1.0, Vector3(-0.1, -0.1, 1), -0.4]],
+}
 
 
-static func build(kind: String) -> Node3D:
+static func build(kind: String, with_hand := false) -> Node3D:
 	var root := Node3D.new()
 	root.name = "melee_" + kind
 	var down := Basis(Vector3.RIGHT, PI / 2)  # cylinders run along Y; turn them to run along Z
@@ -24,15 +48,35 @@ static func build(kind: String) -> Node3D:
 		root.add_child(Geo.rounded_box(0.2, 0.04, 0.05, 2, 0.015).mesh_instance(guard, Vector3(0, 0, -0.04), Basis(), false))
 		root.add_child(Geo.rounded_box(0.07, 0.02, 0.62, 2, 0.008).mesh_instance(blade, Vector3(0, 0, -0.38), Basis(), false))
 		root.add_child(Geo.cone(0.035, 0.1, 4).mesh_instance(blade, Vector3(0, 0, -0.74), Basis(Vector3.RIGHT, -PI / 2), false))
+	if with_hand:
+		# a toy mitten wrapped round the grip
+		var glove := Mats.plastic("#f4c7a1", {"rough": 0.6})
+		root.add_child(Geo.rounded_box(0.09, 0.1, 0.11, 2, 0.04).mesh_instance(glove, Vector3(0, -0.01, 0.06), Basis(), false))
 	return root
 
 
-## Pose of a swing at progress k (0..1): where the weapon sits and how it is turned, in the holder's space
-## (forward = -Z). The sword slashes right to left, the spear thrusts.
+## Ease between keyframes (smooth in and out of each key).
+static func _between(keys: Array, k: float) -> Array:
+	k = clampf(k, 0, 1)
+	for i in range(1, keys.size()):
+		if k <= keys[i][0]:
+			var a: Array = keys[i - 1]
+			var b: Array = keys[i]
+			var t := U.smoothstep(0, 1, (k - a[0]) / maxf(0.0001, b[0] - a[0]))
+			return [a, b, t]
+	var last: Array = keys[keys.size() - 1]
+	return [last, last, 0.0]
+
+
+## First-person pose at swing progress k (0..1); k = 0 (or 1) is the ready pose.
 static func pose(kind: String, k: float) -> Transform3D:
-	var out := U.smoothstep(0, 0.25, k) if k < 0.25 else 1.0 - U.smoothstep(0.7, 1.0, k)
-	if kind == "spear":
-		var reach := lerpf(0.05, 0.75, U.smoothstep(0.05, 0.35, k)) * out
-		return Transform3D(U.euler(0.05, 0, 0), Vector3(0.12, -0.12, -reach))
-	var sweep := lerpf(1.1, -1.1, U.smoothstep(0.1, 0.6, k))
-	return Transform3D(U.euler(-0.35 * out, sweep, -0.5), Vector3(0.12 * out, -0.08, -0.1 * out))
+	var e := _between(VIEW_KEYS[kind], k)
+	var qa := Quaternion(U.euler(e[0][1].x, e[0][1].y, e[0][1].z))
+	var qb := Quaternion(U.euler(e[1][1].x, e[1][1].y, e[1][1].z))
+	return Transform3D(Basis(qa.slerp(qb, e[2])), (e[0][2] as Vector3).lerp(e[1][2], e[2]))
+
+
+## Third person: [right-arm direction (torso space), forearm bend] at swing progress k.
+static func arm_dir(kind: String, k: float) -> Array:
+	var e := _between(ARM_KEYS[kind], k)
+	return [(e[0][1] as Vector3).lerp(e[1][1], e[2]).normalized(), lerpf(e[0][2], e[1][2], e[2])]

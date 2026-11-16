@@ -24,16 +24,14 @@ const PERSONALITIES := {
 }
 
 const DIFFICULTY := {
-	"easy": {"reaction": 0.75, "aimError": 5.5, "turn": 200.0, "view": 42.0, "fov": 100.0, "recoilComp": 0.2, "fireAngle": 7.0, "burst": 0.45, "headshot": 0.05, "hearing": 22.0},
-	"normal": {"reaction": 0.42, "aimError": 2.9, "turn": 340.0, "view": 62.0, "fov": 115.0, "recoilComp": 0.55, "fireAngle": 5.0, "burst": 0.75, "headshot": 0.18, "hearing": 32.0},
-	"hard": {"reaction": 0.24, "aimError": 1.5, "turn": 560.0, "view": 85.0, "fov": 125.0, "recoilComp": 0.8, "fireAngle": 3.5, "burst": 1.0, "headshot": 0.32, "hearing": 42.0},
+	"easy": {"reaction": 0.85, "aimError": 7.0, "turn": 180.0, "view": 42.0, "fov": 100.0, "recoilComp": 0.2, "fireAngle": 7.0, "burst": 0.45, "headshot": 0.03, "hearing": 22.0},
+	"normal": {"reaction": 0.52, "aimError": 3.9, "turn": 300.0, "view": 62.0, "fov": 115.0, "recoilComp": 0.5, "fireAngle": 5.0, "burst": 0.7, "headshot": 0.1, "hearing": 32.0},
+	"hard": {"reaction": 0.32, "aimError": 2.1, "turn": 480.0, "view": 85.0, "fov": 125.0, "recoilComp": 0.75, "fireAngle": 3.5, "burst": 0.95, "headshot": 0.2, "hearing": 42.0},
 }
 
 
 ## Each bot brings two of the five abilities, leaning on its personality.
 static func pick_bot_abilities(p: Dictionary, cls := "light") -> Array:
-	if not Cfg.CLASSES[cls].pick_abilities:
-		return Cfg.CLASSES[cls].abilities.slice(0, 2)
 	var w := {
 		"dash": 0.4 + p.dashUse,
 		"grapple": 0.5 + p.jumpiness * 0.5,
@@ -41,7 +39,7 @@ static func pick_bot_abilities(p: Dictionary, cls := "light") -> Array:
 		"shield": 0.2 + p.caution * 1.0,
 	}
 	var out := []
-	for n in 2:
+	for n in 1:
 		var left := (Cfg.CLASSES[cls].abilities as Array).filter(func(id): return not out.has(id))
 		var total := 0.0
 		for id in left:
@@ -102,6 +100,9 @@ var _burst_until := 0.0
 var _pause_until := 0.0
 var _next_semi_at := 0.0
 var _aim_head := false
+## after being hit: aim shakes until then (much longer after a melee hit)
+var _shaky_until := 0.0
+var _hurt_seen := -99.0
 var _cover_until := 0.0
 var _pickup_target = null
 var _look_around := 0.0
@@ -294,7 +295,7 @@ func _perceive(now: float) -> void:
 	if best:
 		if best != target:
 			_reaction_until = now + d.reaction * U.rand(0.8, 1.3)
-			_aim_head = randf() < d.headshot + personality.headshotBias * 0.3
+			_aim_head = randf() < d.headshot + personality.headshotBias * 0.3 and not best.melee_held
 		target = best
 		_target_visible = true
 		_target_seen_at = now
@@ -322,6 +323,20 @@ func _think(now: float) -> void:
 	var a := actor
 	var p := personality
 	_perceive(now)
+	# getting hit rattles a toy: slower to answer, shaky aim, body shots; a melee hit is scary
+	if a.last_damage_at > _hurt_seen:
+		_hurt_seen = a.last_damage_at
+		var melee_hit := Cfg.MELEE.has(a.last_damage_weapon)
+		_reaction_until = maxf(_reaction_until, now + (U.rand(0.7, 1.1) if melee_hit else U.rand(0.25, 0.5)))
+		_shaky_until = now + (2.2 if melee_hit else 1.0)
+		_aim_head = false
+		if melee_hit and state != "retreat" and randf() < 0.55 + p.caution * 0.35:
+			_start_retreat(now)
+			return
+	# a toy charging in with a sword or spear makes careful toys back off
+	if target and _target_visible and target.melee_held and state != "retreat" and target.pos.distance_to(a.pos) < 5.5 and randf() < 0.08 + p.caution * 0.15:
+		_start_retreat(now)
+		return
 	var ws := a.weapon()
 	var hp_frac := (a.health + a.shield) / a.max_health
 	# wary: run once health starts dropping (earlier for careful toys), or after a sudden burst of damage
@@ -507,8 +522,14 @@ func _use_abilities(now: float) -> void:
 		var dist := t.pos.distance_to(a.pos)
 		var to := Vector3(t.pos.x - a.pos.x, 0, t.pos.z - a.pos.z).normalized()
 		var facing := to.dot(Vector3(-sin(a.yaw), 0, -cos(a.yaw)))
-		if dist < a.melee_def().range + 0.3 and facing > 0.75 and now >= a.melee_ready_at and now >= _reaction_until:
-			Abilities.try_melee(a, now, deps)
+		# gadgets: grenades at a target in throwing range, mines when holding ground or backing off
+		if a.gadget != "" and now >= a.gadget_ready_at and now >= _reaction_until and randf() < 0.04:
+			var gc: Dictionary = Cfg.GADGETS[a.gadget]
+			if gc.has("mine"):
+				if state == "retreat" or role == "holder" or dist < 9:
+					Abilities.try_gadget(a, now, deps)
+			elif dist > 7 and dist < 24 and facing > 0.9:
+				Abilities.try_gadget(a, now, deps)
 		if now >= _ability_check_at:
 			_ability_check_at = now + 0.5
 			var pinned := a.damage_in_last(2, now) > 22 or (ws != null and ws.reloading)
@@ -1046,8 +1067,9 @@ func _aim(dt: float, now: float, moving: bool) -> void:
 			aim_pt.y += 0.5 * ws.cfg.projectile.gravity * tt * tt
 	# smoothly wandering aim error, worse when moving or the target is moving fast
 	if now > _aim_noise_at:
-		_aim_noise_at = now + U.rand(0.25, 0.5)
+		_aim_noise_at = now + U.rand(0.18, 0.4)
 		var err: float = d.aimError * (1 + (0.5 if moving else 0.0) + clampf(t.speed / 8, 0, 1) * 0.6) * (1.6 if now < _reaction_until + 0.4 else 1.0)
+		err *= (2.4 if now < _shaky_until else 1.0) * (1.7 if t.melee_held else 1.0)
 		_aim_noise_target = Vector2(U.rand(-err, err), U.rand(-err, err) * 0.7)
 	_aim_noise = _aim_noise.lerp(_aim_noise_target, 1 - exp(-6 * dt))
 	var to := aim_pt - eye

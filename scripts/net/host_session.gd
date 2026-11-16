@@ -42,6 +42,7 @@ func _init(game, mode: String, bots: int) -> void:
 	g.combat.on_remote_kick = _remote_kick
 	g.combat.on_fire = _on_fire
 	g.combat.on_shield = _on_shield
+	g.combat.on_gadget = _on_gadget
 
 
 ## a match is running (as opposed to the lobby)
@@ -167,6 +168,12 @@ func _on_fire(shooter: Actor, ws: WeaponState, origin: Vector3, dir: Vector3, mu
 		"dir": [snappedf(dir.x, 0.0001), snappedf(dir.y, 0.0001), snappedf(dir.z, 0.0001)], "muzzle": Snapshot.v3(muzzle), "spread": Snapshot.r2(spread)})
 
 
+func _on_gadget(shooter: Actor, gid: String, origin: Vector3, dir: Vector3) -> void:
+	if not live() or g.remotes.has(shooter):
+		return  # guests' throws are relayed when they arrive
+	send_ev({"e": "gadget", "seat": seat(shooter), "id": gid, "origin": Snapshot.v3(origin), "dir": [Snapshot.r3(dir.x), Snapshot.r3(dir.y), Snapshot.r3(dir.z)]})
+
+
 func _on_shield(a: Actor, yaw: float) -> void:
 	if live() and not g.remotes.has(a):
 		send_ev({"e": "ability", "seat": seat(a), "id": "shield", "yaw": Snapshot.r3(yaw)})
@@ -225,6 +232,14 @@ func _on_guest_msg(m: Dictionary, from: String) -> void:
 			var ev := s.duplicate()
 			ev.e = "shot"
 			send_ev(ev)
+		"ggadget":
+			var gs: Dictionary = m.s
+			if int(gs.seat) != r.seat:
+				return
+			g.replay_gadget(a, gs)
+			var gev := gs.duplicate()
+			gev.e = "gadget"
+			send_ev(gev)
 		"gability":
 			var ab: Dictionary = m.a
 			if int(ab.seat) != r.seat:
@@ -266,6 +281,7 @@ func drive(a: Actor, r: Dictionary) -> void:
 	a.cloaked = s.cloaked
 	a.fire_kick = maxf(a.fire_kick, s.fireKick)
 	a.melee_t = s.meleeT
+	a.melee_held = bool(s.get("mh", false))
 	if s.grapple != null:
 		var anchor := Snapshot.vec(s.grapple)
 		if a.grapple != null:
@@ -353,6 +369,7 @@ func dispose() -> void:
 	g.combat.on_remote_kick = Callable()
 	g.combat.on_fire = Callable()
 	g.combat.on_shield = Callable()
+	g.combat.on_gadget = Callable()
 	if net.on_game == Callable(self, "_on_guest_msg"):
 		net.on_game = Callable()
 	if net.on_peers == Callable(self, "_peers_changed"):

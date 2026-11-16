@@ -332,9 +332,9 @@ func _loadout_bb() -> String:
 	var c := Loadout.cls()
 	var g := Loadout.gun()
 	var ab := Loadout.abilities()
-	return "[font_size=13][color=#fff8ecbf]Class[/color][/font_size] %s     [font_size=13][color=#fff8ecbf]Blaster[/color][/font_size] %s [font_size=13][color=#fff8ecbf]%s[/color][/font_size]     [font_size=13][color=#fff8ecbf]Abilities[/color][/font_size] %s" % [
-		UI.d(Cfg.CLASSES[c].name, 17), UI.d(Cfg.WEAPONS[g].name, 17), Cfg.SCOPES[Loadout.scope(g)].name,
-		UI.d(ABILITY_INFO[ab[0]].short + " + " + ABILITY_INFO[ab[1]].short, 17)]
+	var gname: String = Cfg.MELEE[g].name if Cfg.MELEE.has(g) else Cfg.WEAPONS[g].name
+	return "[font_size=13][color=#fff8ecbf]Class[/color][/font_size] %s     [font_size=13][color=#fff8ecbf]Weapon[/color][/font_size] %s     [font_size=13][color=#fff8ecbf]Ability[/color][/font_size] %s     [font_size=13][color=#fff8ecbf]Gadget[/color][/font_size] %s" % [
+		UI.d(Cfg.CLASSES[c].name, 17), UI.d(gname, 17), UI.d(ABILITY_INFO[ab[0]].short, 17), UI.d(Cfg.GADGETS[Loadout.gadget()].short, 17)]
 
 
 func play() -> void:
@@ -609,13 +609,13 @@ func collection(back_to: String) -> void:
 	wallet.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	tr.add_child(wallet)
 	v.add_child(tr)
-	v.add_child(UI.para("Pick a class, then its blaster, scope and abilities. Lights swing a Toy Sword, Mediums a Toy Spear (melee key)." + (" Changes apply the next time you respawn." if back_to == "pause" else "")))
+	v.add_child(UI.para("Pick a class, then one ability, one gadget and one weapon: a blaster or your class's melee weapon (Lights: Toy Sword, Mediums: Toy Spear)." + (" Changes apply the next time you respawn." if back_to == "pause" else "")))
 	# class
 	var cls := Loadout.cls()
 	var crow := UI.grid(2, 10, 10)
 	for c in Cfg.CLASS_ORDER:
 		var cd: Dictionary = Cfg.CLASSES[c]
-		var sub := "%d health, %s" % [cd.health, "faster, Dash / Spring Hook / Cloak, Toy Sword" if c == "light" else "slower and tougher, Mesh Shield + Cloak, Toy Spear"]
+		var sub := "%d health, %s" % [cd.health, "faster: Dash or Spring Hook, grenades, Toy Sword" if c == "light" else "slower and tougher: Mesh Shield or Cloak, mines, Toy Spear"]
 		crow.add_child(UI.choice(cd.name.to_upper(), sub, c == cls, func():
 			Loadout.set_cls(c)
 			selected_weapon = Loadout.gun()
@@ -624,62 +624,41 @@ func collection(back_to: String) -> void:
 	v.add_child(crow)
 	if not Cfg.CLASSES[cls].guns.has(selected_weapon) and selected_weapon != Cfg.CLASSES[cls].melee:
 		selected_weapon = Loadout.gun()
-	# abilities: Lights pick 2 of 3, Mediums always have both of theirs
+	# ability: pick one
 	var ab := Loadout.abilities()
-	var picks: bool = Cfg.CLASSES[cls].pick_abilities
-	v.add_child(UI.rich("[font_size=12][color=#fff8ecd9]ABILITIES[/color][/font_size]  [font_size=13][color=#fff8eccc]%s[/color][/font_size]" % ("pick 2 of 3: choose a slot, then an ability" if picks else "Mediums always carry these two"), 12))
-	var slots := UI.grid(2, 10, 10)
-	for i in 2:
-		var key := GInput.action_name("ability2" if i else "ability1")
-		var b := UI.choice(Cfg.ABILITIES[ab[i]].name, "" if picks else ABILITY_INFO[ab[i]].desc, picks and abil_slot == i, func():
-			if picks:
-				abil_slot = i
-				collection(back_to), "ABILITY %d   [%s]" % [i + 1, key], 19)
-		slots.add_child(b)
-	v.add_child(slots)
-	if picks:
-		var chips := UI.grid(3, 8, 8)
-		for id in Cfg.CLASSES[cls].abilities:
-			var on := ab.find(id)
-			chips.add_child(UI.choice(Cfg.ABILITIES[id].name + ("  (%d)" % (on + 1) if on >= 0 else ""), ABILITY_INFO[id].desc, on >= 0, func():
-				if Loadout.abilities()[abil_slot] == id:
-					return
-				Loadout.set_ability(abil_slot, id)
-				# the next pick fills the other slot, so two clicks set both
-				abil_slot = 0 if abil_slot else 1
-				collection(back_to), "", 15, 12))
-		v.add_child(chips)
-	# equipped blaster, melee weapon and gadget
-	var eq := UI.grid(3, 10, 10)
+	v.add_child(UI.rich("[font_size=12][color=#fff8ecd9]ABILITY  [%s][/color][/font_size]  [font_size=13][color=#fff8eccc]pick one[/color][/font_size]" % GInput.action_name("ability1"), 12))
+	var chips := UI.grid(2, 8, 8)
+	for id in Cfg.CLASSES[cls].abilities:
+		chips.add_child(UI.choice(Cfg.ABILITIES[id].name, ABILITY_INFO[id].desc, ab[0] == id, func():
+			Loadout.set_ability(id)
+			collection(back_to), "", 17, 12))
+	v.add_child(chips)
+	# gadget: pick one (the rest of the class's list is still being made)
+	var gsel := Loadout.gadget()
+	v.add_child(UI.rich("[font_size=12][color=#fff8ecd9]GADGET  [%s][/color][/font_size]  [font_size=13][color=#fff8eccc]pick one[/color][/font_size]" % GInput.action_name("gadget"), 12))
+	var gchips := UI.grid(3, 8, 8)
+	for g in Cfg.CLASSES[cls].gadgets:
+		if Cfg.GADGETS.has(g):
+			gchips.add_child(UI.choice(Cfg.GADGETS[g].name, Cfg.GADGETS[g].blurb, gsel == g, func():
+				Loadout.set_gadget(g)
+				collection(back_to), "", 17, 12))
+		else:
+			var soon := UI.choice(GADGET_NAMES.get(g, g), "Coming soon", false, func(): pass, "", 17, 12)
+			soon.modulate.a = 0.45
+			gchips.add_child(soon)
+	v.add_child(gchips)
+	# your one weapon: a blaster or the class's melee weapon
+	var eq := UI.grid(1, 10, 10)
 	var gid := Loadout.gun()
+	var is_melee := Cfg.MELEE.has(gid)
 	var gcard := UI.panel(UI.sb(Color(0, 0, 0, 0.22), 14, 3, U.col(_wcolor(gid)), Vector4(12, 8, 12, 8)))
 	var gv := UI.vbox(0)
-	gv.add_child(UI.label("BLASTER", UI.BODY, 12, Color(UI.PAPER, 0.75)))
-	gv.add_child(UI.label(Cfg.WEAPONS[gid].name, UI.DISPLAY, 19))
-	gv.add_child(UI.label(Cfg.SCOPES[Loadout.scope(gid)].name, UI.BODY, 13, Color(UI.PAPER, 0.85)))
+	gv.add_child(UI.label("WEAPON  (a blaster OR your melee weapon)", UI.BODY, 12, Color(UI.PAPER, 0.75)))
+	gv.add_child(UI.label(Cfg.MELEE[gid].name if is_melee else Cfg.WEAPONS[gid].name, UI.DISPLAY, 19))
+	gv.add_child(UI.label("Melee: left click swings" if is_melee else Cfg.SCOPES[Loadout.scope(gid)].name, UI.BODY, 13, Color(UI.PAPER, 0.85)))
 	gcard.add_child(gv)
 	gcard.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	eq.add_child(gcard)
-	var mid: String = Cfg.CLASSES[cls].melee
-	var mcard := UI.panel(UI.sb(Color(0, 0, 0, 0.22), 14, 3, U.col(Cfg.MELEE[mid].color), Vector4(12, 8, 12, 8)))
-	var mv := UI.vbox(0)
-	mv.add_child(UI.label("MELEE", UI.BODY, 12, Color(UI.PAPER, 0.75)))
-	mv.add_child(UI.label(Cfg.MELEE[mid].name, UI.DISPLAY, 19))
-	mv.add_child(UI.label("Always carried: %s to hold, %s to swing" % [GInput.action_name("weapon2"), GInput.action_name("melee")], UI.BODY, 13, Color(UI.PAPER, 0.85)))
-	mcard.add_child(mv)
-	mcard.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	eq.add_child(mcard)
-	var dcard := UI.panel(UI.sb(Color(0, 0, 0, 0.22), 14, 3, Color(1, 1, 1, 0.25), Vector4(12, 8, 12, 8)))
-	var dv := UI.vbox(0)
-	dv.add_child(UI.label("GADGET  -  COMING SOON", UI.BODY, 12, Color(UI.PAPER, 0.75)))
-	var gnames := []
-	for g in Cfg.CLASSES[cls].gadgets:
-		gnames.append(GADGET_NAMES.get(g, g))
-	dv.add_child(UI.label(", ".join(gnames), UI.BODY, 14, Color(UI.PAPER, 0.5)))
-	dcard.add_child(dv)
-	dcard.modulate.a = 0.7
-	dcard.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	eq.add_child(dcard)
 	v.add_child(eq)
 	# weapon list (this class's blasters) + viewer
 	var colls := UI.hbox(18)
@@ -706,8 +685,8 @@ func collection(back_to: String) -> void:
 			selected_weapon = id
 			collection(back_to))
 		wl.add_child(b)
-	# the class's melee weapon (always carried)
-	wl.add_child(UI.label("MELEE", UI.BODY, 12, Color(UI.PAPER, 0.75)))
+	# ...or the class's melee weapon instead of a blaster
+	wl.add_child(UI.label("MELEE (instead of a blaster)", UI.BODY, 12, Color(UI.PAPER, 0.75)))
 	var mel: String = Cfg.CLASSES[cls].melee
 	var mst := UI.sb(Color(1, 1, 1, 0.18) if selected_weapon == mel else Color(1, 1, 1, 0.07), 14, 0, Color.TRANSPARENT, Vector4(12, 9, 12, 6))
 	mst.border_width_left = 8
@@ -851,6 +830,7 @@ static func _model_aabb(n: Node3D) -> AABB:
 func _weapon_info(vv: VBoxContainer, back_to: String) -> void:
 	var id := selected_weapon
 	if Cfg.MELEE.has(id):
+		melee_back = back_to
 		_melee_info(vv, id)
 		return
 	var w: Dictionary = Cfg.WEAPONS[id]
@@ -936,10 +916,11 @@ func _weapon_info(vv: VBoxContainer, back_to: String) -> void:
 
 
 ## The melee weapon's page in Loadout: what it does and how to use it.
+var melee_back := "main"
 func _melee_info(vv: VBoxContainer, id: String) -> void:
 	var md: Dictionary = Cfg.MELEE[id]
 	vv.add_child(UI.label(md.name, UI.DISPLAY, 34, U.col(md.color)))
-	vv.add_child(UI.rich("[color=#fff8ecbf]Melee - always carried by %ss[/color]" % ("Light" if id == "sword" else "Medium"), 15))
+	vv.add_child(UI.rich("[color=#fff8ecbf]Melee weapon for %ss - take it instead of a blaster[/color]" % ("Light" if id == "sword" else "Medium"), 15))
 	vv.add_child(UI.para("Quick, wide swings that hit everyone in front of you." if id == "sword" else "Slower thrusts with long reach that hit everyone in front of you.", 16, 1.0))
 	var meters := [
 		["Damage", minf(1, md.damage / 81.0), str(int(md.damage))],
@@ -969,7 +950,12 @@ func _melee_info(vv: VBoxContainer, id: String) -> void:
 		g.add_child(bar)
 		g.add_child(t)
 	vv.add_child(g)
-	vv.add_child(UI.para("Press %s to take it out (then left click to swing, %s for your blaster), or %s for a quick swing any time." % [GInput.action_name("weapon2"), GInput.action_name("weapon1"), GInput.action_name("melee")], 14, 0.9))
+	vv.add_child(UI.para("Left click swings. Hits everyone in front of you.", 14, 0.9))
+	var is_eq := Loadout.gun() == id
+	var b := UI.btn("Equipped" if is_eq else "Equip (replaces your blaster)", "primary" if is_eq else "", true, func():
+		Loadout.set_gun(id)
+		collection(melee_back))
+	vv.add_child(b)
 
 
 # ------------------------------------------------------------------ settings
@@ -1105,9 +1091,9 @@ func controls(back_to: String) -> void:
 	for a in Binds.ACTIONS:
 		var lbl: String = a.label
 		if a.id == "ability1":
-			lbl = "Ability 1 (%s)" % Cfg.ABILITIES[ab[0]].name
-		elif a.id == "ability2":
-			lbl = "Ability 2 (%s)" % Cfg.ABILITIES[ab[1]].name
+			lbl = "Ability (%s)" % Cfg.ABILITIES[ab[0]].name
+		elif a.id == "gadget":
+			lbl = "Gadget (%s)" % Cfg.GADGETS[Loadout.gadget()].name
 		var k: Array = Binds.kb[a.id]
 		var cells := [_bind_btn(a.id, "0", Binds.key_label(k[0])), _bind_btn(a.id, "1", Binds.key_label(k[1]))]
 		if a.has("stick"):

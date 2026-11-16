@@ -4,7 +4,7 @@ extends Node3D
 ## (port of src/combat/Combat.ts, solo/host path).
 ## Events: damage, kill, shot, explosion, hit (see Game for the payload keys).
 
-const PROJ_POOL := {"dart": 140, "bubble": 160, "crayon": 20, "bolt": 120, "arrow": 40, "slug": 40}
+const PROJ_POOL := {"dart": 140, "bubble": 160, "crayon": 20, "bolt": 120, "arrow": 40, "slug": 40, "grenade": 24, "mine": 32}
 const STUCK := 40
 const PAINT := ["#ef476f", "#ffd166", "#06d6a0", "#118ab2", "#8338ec", "#ff8c42"]
 
@@ -23,6 +23,10 @@ var destruction: Destruction
 const BLAST_STRUCT := 6.0
 ## guest: (id: int, dmg: float, kind: String) its own attack hit a breakable piece (the host applies it)
 var on_piece_claim := Callable()
+## online: (shooter, gadget id, origin, dir) for every real (not replayed) gadget throw
+var on_gadget := Callable()
+## burning patches left by pyro gadgets: {pos, r, dps, until, shooter, auth, tick, wid}
+var _fires: Array = []
 var _projectiles: Array = []
 var _mm := {}  # visual -> MultiMesh
 var _buf := {}  # visual -> PackedFloat32Array
@@ -115,6 +119,9 @@ func _init(p: Phys, effects: Effects, aud, ev: Emitter, actor_list: Callable, lo
 		"arrow": arrow_geo.to_mesh(white_std.call(0.5, "#ff4d6d", 0.15)),
 		# sniper round: a thin bright streak (stretched along its flight)
 		"slug": Geo.capsule(0.025, 0.3, 3, 6).rotate_basis(Basis(Vector3.RIGHT, PI / 2)).to_mesh(bolt_mat),
+		# gadgets: a round toy grenade and a flat disc mine (its axis follows the surface it sticks to)
+		"grenade": Geo.sphere(0.13, 12, 9).to_mesh(white_std.call(0.45)),
+		"mine": Geo.cylinder(0.2, 0.22, 0.09, 16).rotate_basis(Basis(Vector3.RIGHT, PI / 2)).to_mesh(white_std.call(0.4)),
 	}
 	for k in PROJ_POOL:
 		_mm[k] = _make_mm(meshes[k], PROJ_POOL[k], k != "bolt" and k != "bubble" and k != "slug")
@@ -125,7 +132,8 @@ func _init(p: Phys, effects: Effects, aud, ev: Emitter, actor_list: Callable, lo
 		for i in PROJ_POOL[k]:
 			_projectiles.append({"active": false, "visual": k, "idx": i, "pos": Vector3.ZERO, "prev": Vector3.ZERO, "vel": Vector3.ZERO,
 				"offset": Vector3.ZERO, "gravity": 0.0, "drag": 0.0, "radius": 0.1, "life": 0.0, "shooter": null, "cfg": {},
-				"traveled": 0.0, "hits": {}, "color": "#fff", "whistle": null, "power": 1.0, "charge": 1.0, "auth": "full"})
+				"traveled": 0.0, "hits": {}, "color": "#fff", "whistle": null, "power": 1.0, "charge": 1.0, "auth": "full",
+				"stuck": false, "arm": 0.0, "normal": Vector3.UP, "born": 0.0})
 
 
 func _make_mm(mesh: Mesh, count: int, shadow: bool) -> MultiMesh:
@@ -384,6 +392,8 @@ func _spawn_projectile(shooter: Actor, cfg: Dictionary, origin: Vector3, d: Vect
 		return
 	p.active = true
 	p.auth = auth
+	p.stuck = false
+	p.born = now
 	p.pos = origin
 	p.prev = origin
 	var speed: float = cfg.charge.minSpeed + (cfg.charge.maxSpeed - cfg.charge.minSpeed) * charge if cfg.has("charge") else spec.speed
@@ -419,6 +429,7 @@ func _spawn_projectile(shooter: Actor, cfg: Dictionary, origin: Vector3, d: Vect
 
 func update(dt: float) -> void:
 	barriers.update(dt, now)
+	_update_fires(dt)
 	# arrows stuck in walls fade away
 	var stuck_dirty := false
 	var stuck_top := 0
@@ -441,6 +452,27 @@ func update(dt: float) -> void:
 		var buf: PackedFloat32Array = _buf[p.visual]
 		_dirty[p.visual] = true
 		_auth = p.auth
+		if p.stuck:
+			# a mine on the ground / a wall: arm, then go off when an enemy comes close (or when it times out)
+			p.life -= dt
+			p.arm -= dt
+			var boom: bool = p.life <= 0
+			if p.arm <= 0 and not boom and p.shooter:
+				for o in actors.call():
+					if o.alive and o != p.shooter and p.shooter.is_enemy(o) and (o.pos + Vector3(0, 0.6, 0)).distance_to(p.pos) < p.cfg.mine.trigger:
+						boom = true
+						break
+			if boom:
+				p.stuck = false
+				p.active = false
+				explode(p.pos, p.normal, p, null)
+				_hide(buf, p.idx)
+				continue
+			var blink := 1.0 if p.arm <= 0 and fmod(now, 1.0) < 0.12 else 0.0
+			_color(buf, p.idx, U.col(p.color).lerp(Color("#ff4d6d"), blink))
+			_write(buf, p.idx, Transform3D(_face(p.normal), p.pos))
+			top[p.visual] = maxi(top.get(p.visual, 0), p.idx + 1)
+			continue
 		p.prev = p.pos
 		var vel: Vector3 = p.vel
 		vel.y -= p.gravity * dt
@@ -457,7 +489,7 @@ func update(dt: float) -> void:
 			var prev: Vector3 = p.prev
 			var world := phys.raycast(prev, d, seg_len + p.radius)
 			var wt: float = world.dist if not world.is_empty() else INF
-			var hit := _trace_actors(prev, d, minf(seg_len, wt), p.shooter, p.radius, p.hits)
+			var hit := {} if cfg.has("mine") else _trace_actors(prev, d, minf(seg_len, wt), p.shooter, p.radius, p.hits)
 			var shield := barriers.trace(prev, d, minf(minf(seg_len + p.radius, wt), hit.t if not hit.is_empty() else INF), p.shooter)
 			if not shield.is_empty():
 				var point: Vector3 = prev + d * shield.t
@@ -477,7 +509,7 @@ func update(dt: float) -> void:
 				var dist: float = p.traveled + hit.t
 				if cfg.has("explosion"):
 					apply_damage(target, p.shooter, cfg.damage * p.power, false, point, cfg.id, d)
-					explode(point, -d, p, target)
+					explode(point, -d, p, null if cfg.get("gadget", false) else target)  # a grenade's blast also hits the toy it struck
 				else:
 					var dmg: float = cfg.damage * (cfg.headMult if hit.head else 1.0) * _falloff(cfg, dist) * p.power
 					apply_damage(target, p.shooter, dmg, hit.head, point, cfg.id, d)
@@ -488,6 +520,22 @@ func update(dt: float) -> void:
 					if p.visual == "arrow" and p.charge > 0.85:
 						_kick(target, d.x * 2.5, d.y * 2.5, d.z * 2.5)
 				done = true
+			elif not world.is_empty() and cfg.has("mine"):
+				# a mine sticks where it lands
+				p.pos = world.point + world.normal * 0.05
+				p.normal = world.normal
+				p.vel = Vector3.ZERO
+				p.stuck = true
+				p.arm = cfg.mine.arm
+				p.life = cfg.mine.life
+			elif not world.is_empty() and cfg.has("mine"):
+				# a mine sticks where it lands
+				p.pos = world.point + world.normal * 0.05
+				p.normal = world.normal
+				p.vel = Vector3.ZERO
+				p.stuck = true
+				p.arm = cfg.mine.arm
+				p.life = cfg.mine.life
 			elif not world.is_empty():
 				p.pos = world.point
 				if cfg.has("explosion"):
@@ -519,7 +567,7 @@ func update(dt: float) -> void:
 		if not done and p.life <= 0:
 			if p.visual == "bubble":
 				fx.bubble_burst(p.pos, p.color)
-			if cfg.has("explosion"):
+			if cfg.has("explosion") and not cfg.has("mine"):
 				explode(p.pos, Vector3.UP, p, null)
 			done = true
 		if p.whistle:
@@ -558,11 +606,15 @@ func update(dt: float) -> void:
 func explode(point: Vector3, normal: Vector3, p: Dictionary, direct) -> void:
 	var ex: Dictionary = p.cfg.explosion
 	var center := point + normal * 0.25
-	var colors := [p.color, U.pick(PAINT), U.pick(PAINT), "#ffffff"]
+	var gadget: bool = p.cfg.get("gadget", false)
+	var colors := ["#ffb347", "#ff6b2b", "#fff1c1", "#4a4a4a"] if gadget else [p.color, U.pick(PAINT), U.pick(PAINT), "#ffffff"]
 	fx.explosion(center, normal, colors, reduced_motion)
-	fx.paint_splat(point, normal, p.color, 2.6)
+	if gadget:
+		fx.impacts.add(point, normal, ex.radius * 0.45, "#1b1b1b", 20, 0.8)  # scorch mark
+	else:
+		fx.paint_splat(point, normal, p.color, 2.6)
 	# extra paint splats on nearby surfaces
-	for i in 5:
+	for i in (0 if gadget else 5):
 		var d := Vector3(U.rand(-1, 1), U.rand(-1, 0.4), U.rand(-1, 1)).normalized()
 		var h := phys.raycast(center, d, ex.radius)
 		if not h.is_empty():
@@ -571,7 +623,7 @@ func explode(point: Vector3, normal: Vector3, p: Dictionary, direct) -> void:
 	if bricks:
 		bricks.blast(center, ex.radius, 3.2)
 	if destruction:
-		for e in destruction.blast_hits(center, ex.radius, ex.maxDamage * p.power * BLAST_STRUCT):
+		for e in destruction.blast_hits(center, ex.radius, ex.get("pieceDamage", ex.maxDamage * BLAST_STRUCT) * p.power):
 			_piece_hit(e.id, e.dmg, "blast", e.point, e.normal)
 	var shooter: Actor = p.shooter
 	for a in actors.call():
@@ -600,6 +652,76 @@ func explode(point: Vector3, normal: Vector3, p: Dictionary, direct) -> void:
 		var push := Vector3(h.x - center.x, 0.6, h.z - center.z).normalized() * (6 * f)
 		_kick(a, push.x, push.y, push.z)
 	events.emit("explosion", {"pos": center, "radius": ex.radius})
+	if ex.has("fire"):
+		var f: Dictionary = ex.fire
+		var ground := phys.raycast(center, Vector3.DOWN, 3.0, true)
+		var at: Vector3 = ground.point if not ground.is_empty() else point
+		_fires.append({"pos": at, "r": f.radius, "dps": f.dps, "until": now + f.time, "shooter": shooter, "auth": _auth, "tick": 0.0, "wid": p.cfg.id})
+		audio.explosion(at)
+
+
+## Throw / place a gadget (auth as for fire(): "" = this game's own, "visual" = someone else's, replayed).
+func throw_gadget(shooter: Actor, gid: String, origin: Vector3, dir: Vector3, auth := "") -> void:
+	if not Cfg.GADGETS.has(gid):
+		return
+	if auth == "":
+		auth = local_auth
+	var cfg: Dictionary = Cfg.GADGETS[gid]
+	if auth != "visual" and on_gadget.is_valid():
+		on_gadget.call(shooter, gid, origin, dir)
+	shooter.reveal_at = now
+	if cfg.has("mine"):
+		# only so many mines out at once: the oldest one goes
+		var mine := []
+		for x in _projectiles:
+			if x.active and x.shooter == shooter and x.cfg.get("id", "") == gid:
+				mine.append(x)
+		if mine.size() >= int(cfg.mine.max):
+			mine.sort_custom(func(a, b): return a.born < b.born)
+			var old: Dictionary = mine[0]
+			old.active = false
+			old.stuck = false
+			_hide(_buf[old.visual], old.idx)
+			_dirty[old.visual] = true
+	_auth = auth
+	_spawn_projectile(shooter, cfg, origin, dir, origin, 1.0, 1.0, auth)
+	_auth = "full"
+
+
+## Burning patches: flames, and damage four times a second to enemies standing in them.
+func _update_fires(dt: float) -> void:
+	if _fires.is_empty():
+		return
+	var keep := []
+	for z in _fires:
+		if now >= z.until or z.shooter == null:
+			continue
+		keep.append(z)
+		var zp: Vector3 = z.pos
+		for i in 3:
+			var a := randf() * TAU
+			var rr := sqrt(randf()) * float(z.r)
+			fx.glow.emit(zp + Vector3(cos(a) * rr, 0.15, sin(a) * rr), Vector3(U.rand(-0.3, 0.3), U.rand(1.5, 3.2), U.rand(-0.3, 0.3)), U.col(U.pick(["#ff6b2b", "#ffb347", "#ffd23f", "#d62828"])), U.rand(0.25, 0.5), U.rand(0.3, 0.6), {"gravity": -2, "drag": 1})
+		if randf() < 0.3:
+			fx.soft.emit(zp + Vector3(U.rand(-1, 1), 0.6, U.rand(-1, 1)), Vector3(0, U.rand(0.8, 1.6), 0), Color(0.25, 0.22, 0.2), U.rand(0.8, 1.4), U.rand(0.8, 1.4), {"grow": 1.5, "drag": 1, "alpha": 0.35})
+		z.tick -= dt
+		if z.tick > 0:
+			continue
+		z.tick = 0.25
+		var sh: Actor = z.shooter
+		_auth = z.auth
+		for a in actors.call():
+			if not a.alive or a == sh:
+				continue
+			if sh.team >= 0 and a.team == sh.team:
+				continue
+			var d := Vector2(a.pos.x - zp.x, a.pos.z - zp.z).length()
+			if d > float(z.r) or absf(a.pos.y - zp.y) > 1.8:
+				continue
+			apply_damage(a, sh, float(z.dps) * 0.25, false, a.chest_pos(), z.wid, Vector3.UP)
+		_auth = "full"
+		_flush_claims()
+	_fires = keep
 
 
 ## Arrows stuck inside `box` (their middle point).
@@ -717,6 +839,7 @@ func apply_damage(target: Actor, attacker, amount: float, head: bool, point: Vec
 	var health_dmg := minf(target.health, amount - shield_dmg)
 	target.health -= amount - shield_dmg
 	target.last_damage_at = now
+	target.last_damage_weapon = weapon
 	target.recent_damage.append([now, amount])
 	target.hit_flinch = minf(1, target.hit_flinch + 0.6)
 	if attacker and attacker != target:
@@ -784,6 +907,7 @@ func _eliminate(victim: Actor, killer, weapon: String, head: bool) -> void:
 
 func clear() -> void:
 	barriers.clear()
+	_fires.clear()
 	_stuck_life.fill(0)
 	for i in STUCK:
 		_hide(_stuck_buf, i)

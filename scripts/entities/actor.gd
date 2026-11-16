@@ -108,6 +108,11 @@ var cloak_start := 0.0
 var melee_t := 0.0
 ## the sword / spear is in hand (instead of the blaster): fire swings it
 var melee_held := false
+## gadget (Cfg.GADGETS id, "" = none) and when it's ready again
+var gadget := ""
+var gadget_ready_at := 0.0
+## the weapon id of the last hit this toy took (bots flinch harder at melee)
+var last_damage_weapon := ""
 ## {anchor, start, check_at, check_dist, climbing} or null
 var grapple = null
 # ---- revive (team modes)
@@ -401,6 +406,7 @@ func spawn(at: Vector3, y: float, now: float) -> void:
 	zip = null
 	launched = false
 	melee_t = 0
+	gadget_ready_at = 0.0
 	recent_damage = []
 	health = max_health
 	shield = 0

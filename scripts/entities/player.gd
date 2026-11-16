@@ -85,8 +85,7 @@ func switch_to(s: int, now: float) -> void:
 
 ## Called when the player respawns.
 func on_spawn() -> void:
-	actor.melee_held = false
-	vm.hold_melee(Cfg.CLASSES[actor.cls].melee, false)
+	vm.hold_melee(Cfg.CLASSES[actor.cls].melee, actor.melee_held)
 	recoil_pitch = 0
 	recoil_yaw = 0
 	trauma = 0
@@ -213,21 +212,8 @@ func update(dt: float, now: float) -> void:
 	# ---------------- weapons
 	# reload, unless it shares a button with revive and a downed teammate is right here
 	var reload_pressed := input.act_pressed("reload") and not (interact_prompt != "" and input.act("revive"))
-	if a.alive and ws:
-		# 1 = blaster, 2 = sword / spear in hand, swap / mouse wheel flips between them
-		var was_held := a.melee_held
-		if input.act_pressed("weapon1"):
-			a.melee_held = false
-		if input.act_pressed("weapon2"):
-			a.melee_held = true
-		if input.wheel != 0 or input.act_pressed("swap"):
-			a.melee_held = not a.melee_held
-		if a.melee_held != was_held:
-			vm.hold_melee(Cfg.CLASSES[a.cls].melee, a.melee_held)
-			audio.weapon_switch()
-			if not a.melee_held:
-				equip_current(false)
-	if a.alive and ws and a.melee_held:
+	# your one weapon: a blaster, or (if you picked it) your class's melee weapon: fire swings it
+	if a.alive and a.melee_held:
 		a.ads = 0
 		if input.act_pressed("fire") and Abilities.try_melee(a, now, {"combat": combat, "phys": deps.phys, "audio": audio}):
 			vm.melee(Cfg.CLASSES[a.cls].melee, a.melee_def().swing)
@@ -288,12 +274,13 @@ func update(dt: float, now: float) -> void:
 	# ---------------- abilities (dash is part of movement)
 	if a.alive:
 		var adeps := {"combat": combat, "phys": deps.phys, "audio": audio}
-		for k in [["ability1", 0], ["ability2", 1]]:
-			if input.act_pressed(k[0]) and a.abilities.size() > k[1] and a.abilities[k[1]] != "":
-				_use_ability(a.abilities[k[1]], now, adeps)
-		if input.act_pressed("melee") and Abilities.try_melee(a, now, adeps):
-			vm.melee(Cfg.CLASSES[a.cls].melee, a.melee_def().swing)
-			add_trauma(0.1)
+		if input.act_pressed("ability1") and a.abilities.size() and a.abilities[0] != "":
+			_use_ability(a.abilities[0], now, adeps)
+		if input.act_pressed("gadget"):
+			if Abilities.try_gadget(a, now, adeps):
+				add_trauma(0.05)
+			elif a.gadget != "":
+				denied = {"key": a.gadget, "at": now}
 	revive_held = a.alive and input.act("revive")
 	# interact: grab a zipline in reach (reviving a teammate takes priority)
 	if a.alive and a.zip == null and input.act_pressed("revive") and deps.has("try_zip"):

@@ -29,6 +29,7 @@ func _init(game) -> void:
 	g.combat.on_fire = _on_fire
 	g.combat.on_shield = _on_shield
 	g.combat.on_piece_claim = _on_piece_claim
+	g.combat.on_gadget = _on_gadget
 
 
 func started() -> bool:
@@ -64,6 +65,12 @@ func _on_fire(shooter: Actor, ws: WeaponState, origin: Vector3, dir: Vector3, mu
 func _on_shield(a: Actor, yaw: float) -> void:
 	if g.player and a == g.player.actor:
 		net.send_game({"g": "gability", "a": {"seat": local_seat, "id": "shield", "yaw": Snapshot.r3(yaw)}})
+
+
+func _on_gadget(shooter: Actor, gid: String, origin: Vector3, dir: Vector3) -> void:
+	if g.player == null or shooter != g.player.actor:
+		return
+	net.send_game({"g": "ggadget", "s": {"seat": local_seat, "id": gid, "origin": Snapshot.v3(origin), "dir": [Snapshot.r3(dir.x), Snapshot.r3(dir.y), Snapshot.r3(dir.z)]}})
 
 
 ## Our own attack hit a wall or prop: the host decides what it does.
@@ -172,6 +179,10 @@ func _on_event(ev: Dictionary) -> void:
 			var a = _actor(int(ev.seat))
 			if a and int(ev.seat) != me:
 				g.replay_shot(a, ev)
+		"gadget":
+			var ga = _actor(int(ev.seat))
+			if ga and int(ev.seat) != me:
+				g.replay_gadget(ga, ev)
 		"ability":
 			var a = _actor(int(ev.seat))
 			if a and int(ev.seat) != me:
@@ -244,7 +255,7 @@ func _own_state():
 		"weapon": ws.id if ws else "", "reload": Snapshot.r2(maxf(0.01, ws.reload_progress())) if ws and ws.reloading else 0,
 		"ads": Snapshot.r2(a.ads), "crouch": Snapshot.r2(a.crouch_t), "sliding": a.sliding, "dashing": a.dashing, "cloaked": a.cloaked,
 		"fireKick": Snapshot.r2(a.fire_kick), "revive": pl.revive_held, "grapple": Snapshot.v3(a.grapple.anchor) if a.grapple != null else null,
-		"meleeT": Snapshot.r2(a.melee_t), "cls": a.cls,
+		"meleeT": Snapshot.r2(a.melee_t), "cls": a.cls, "mh": a.melee_held,
 	}
 
 
@@ -257,5 +268,6 @@ func dispose() -> void:
 	c.on_fire = Callable()
 	c.on_shield = Callable()
 	c.on_piece_claim = Callable()
+	c.on_gadget = Callable()
 	if net.on_game == Callable(self, "_on_host_msg"):
 		net.on_game = Callable()

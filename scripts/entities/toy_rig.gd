@@ -141,25 +141,33 @@ func _repaint(map: Dictionary) -> void:
 		m.material_override = cache[mat]
 
 
-# ---- melee weapon (third person): shown only while swinging
-## t = seconds left on the swing, kind = sword / spear, swing = full swing length
-func set_melee(t: float, kind := "sword", swing := 0.5) -> void:
-	if t <= 0:
+# ---- melee weapon (third person): in hand for melee fighters, the arm swings it
+## t = seconds left on the swing, kind = sword / spear, swing = full swing length, held = it's their weapon
+func set_melee(t: float, kind := "sword", swing := 0.5, held := false) -> void:
+	if t <= 0 and not held:
 		if _melee:
 			_melee.visible = false
+		for c in weapon_socket.get_children():
+			if c != _melee:
+				(c as Node3D).visible = true
 		return
 	if _melee == null or kind != _melee_kind:
 		if _melee:
 			_melee.queue_free()
-		_melee = Node3D.new()
-		_melee.add_child(MeleeModel.build(kind))
+		_melee = MeleeModel.build(kind)
 		_melee.set_meta("no_outline", true)
-		torso.add_child(_melee)
+		weapon_socket.add_child(_melee)
 		_melee_kind = kind
 	_melee.visible = true
-	var pz := MeleeModel.pose(kind, 1 - t / maxf(swing, 0.01))
-	# the rig faces +Z: turn the -Z pose round, hold it at the right shoulder
-	_melee.transform = Transform3D(Basis(Vector3.UP, PI) * pz.basis, Vector3(-0.2, 0.45, 0.15) + Basis(Vector3.UP, PI) * pz.origin)
+	# held like the blasters are (the socket points it along the aim)
+	_melee.transform = Transform3D(U.euler(PI / 2, PI, 0), Vector3(0, -0.02, 0.06))
+	for c in weapon_socket.get_children():
+		if c != _melee:
+			(c as Node3D).visible = false
+	if t > 0:
+		var pose := MeleeModel.arm_dir(kind, 1 - t / maxf(swing, 0.01))
+		arm_r.basis = _from_down(pose[0])
+		fore_r.rotation = Vector3(pose[1], 0, 0)
 
 
 ## Cloak: opacity 0 = normal. Anything > 0 renders the toy as a ghostly shimmer at that opacity.

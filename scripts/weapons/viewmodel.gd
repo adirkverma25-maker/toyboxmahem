@@ -123,7 +123,7 @@ func _ensure_melee(kind: String) -> void:
 		return
 	for c in melee_node.get_children():
 		c.queue_free()
-	var m := MeleeModel.build(kind)
+	var m := MeleeModel.build(kind, true)
 	m.scale = Vector3.ONE * (0.85 if kind == "spear" else 1.0)
 	melee_node.add_child(m)
 	melee_kind = kind
@@ -357,25 +357,24 @@ func update(dt: float, c: Dictionary) -> void:
 	var hrot := Vector3(rx + kr + sway_y * 2, ry + sway_x * 2.5, rz + kick_roll[0] * rm + sway_x * 1.5)
 	holder.visible = not (scope_hidden and c.ads > 0.9)
 	# melee: the sword / spear swings across the view while the blaster dips out of the way
-	# held: the blaster is put away and the weapon rests ready on the right
-	var hold_base := Transform3D(U.euler(0.35, -0.25, -0.35), Vector3(0.26, -0.3, -0.42))
-	if melee_t > 0:
-		melee_t = maxf(0, melee_t - dt)
-		var k := 1 - melee_t / melee_len
-		var out := U.smoothstep(0, 0.2, k) if k < 0.2 else 1 - U.smoothstep(0.75, 1, k)
+	# melee: keyframed swing (wind-up, strike, follow-through, recover) from the ready pose
+	if melee_t > 0 or melee_hold:
+		var k := 0.0
+		if melee_t > 0:
+			melee_t = maxf(0, melee_t - dt)
+			k = 1 - melee_t / melee_len
 		melee_node.visible = true
 		var pz := MeleeModel.pose(melee_kind, k)
-		melee_node.transform = Transform3D(pz.basis, Vector3(0.2, -0.26, -0.42) + pz.origin)
-		hpos.y -= out * 0.25
-		hrot.z -= out * 0.4
-	elif melee_hold:
-		melee_node.visible = true
-		var bob := sin(time * 2.0) * 0.006
-		melee_node.transform = Transform3D(hold_base.basis, hold_base.origin + Vector3(sway_x, bob + sway_y, 0))
+		var bob := sin(time * 2.0) * 0.006 if melee_t <= 0 else 0.0
+		melee_node.transform = Transform3D(pz.basis, pz.origin + Vector3(sway_x, bob + sway_y, 0))
+		if not melee_hold:
+			var out := U.smoothstep(0, 0.2, k) if k < 0.2 else 1 - U.smoothstep(0.75, 1, k)
+			hpos.y -= out * 0.25
+			hrot.z -= out * 0.4
 	else:
 		melee_node.visible = false
 	if melee_hold:
-		hpos.y -= 0.6  # the blaster drops out of view
+		holder.visible = false  # melee instead of a blaster: no gun in view
 	# bow: limbs, string and arrow follow the draw
 	if current_id == "plungerBow":
 		var draw := U.smoothstep(0, 1, c.charge)

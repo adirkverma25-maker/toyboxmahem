@@ -14,6 +14,21 @@ static func _src(a: Actor):
 	return null if a.is_player else a.chest_pos()
 
 
+## Throw / place the gadget along your aim. Returns false while it's recharging.
+static func try_gadget(a: Actor, now: float, deps: Dictionary) -> bool:
+	if not a.alive or a.gadget == "" or not Cfg.GADGETS.has(a.gadget) or now < a.gadget_ready_at:
+		return false
+	var g: Dictionary = Cfg.GADGETS[a.gadget]
+	a.gadget_ready_at = now + g.cooldown
+	var fwd := a.forward()
+	# a little loft for throws; mines are lobbed short and low
+	var dir := (fwd + Vector3(0, 0.18 if g.has("mine") else 0.12, 0)).normalized()
+	var origin := a.eye_pos() + Vector3(fwd.x, 0, fwd.z).normalized() * 0.35 + Vector3(0, -0.15, 0)
+	deps.combat.throw_gadget(a, a.gadget, origin, dir)
+	deps.audio.punch(false, _src(a))
+	return true
+
+
 ## Melee swing (sword / spear). Returns false while the last swing is still going.
 static func try_melee(a: Actor, now: float, deps: Dictionary) -> bool:
 	if not a.alive or now < a.melee_ready_at or a.grapple != null or a.zip != null:
