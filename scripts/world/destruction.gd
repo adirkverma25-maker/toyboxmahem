@@ -40,7 +40,7 @@ func add_piece(mn: Vector3, mx: Vector3, mat: Material, cls: String, group: Stri
 	var hp: float = CLASSES[cls].hp
 	var body := StaticBody3D.new()
 	body.name = "piece_%d" % id
-	body.collision_layer = Phys.WORLD
+	body.collision_layer = Phys.WORLD | Phys.PIECE
 	body.collision_mask = 0
 	body.set_meta("mat", surf if surf != "" else "plastic")
 	body.set_meta("piece", id)
@@ -179,7 +179,7 @@ func reset() -> void:
 		p.broken = false
 		p.hp = p.max_hp
 		var body: StaticBody3D = p.body
-		body.collision_layer = Phys.WORLD
+		body.collision_layer = Phys.WORLD | Phys.PIECE
 		body.process_mode = Node.PROCESS_MODE_INHERIT
 	for g in dirty:
 		_rebuild(g)
@@ -208,6 +208,13 @@ func blast(center: Vector3, radius: float, max_damage: float) -> Array[int]:
 		damage(e[0], e[1], "blast", e[2], -e[3])
 		hit.append(e[0])
 	return hit
+
+
+## While the nav graph is built, standing pieces leave the WORLD layer so walk tests ignore them.
+func set_nav_mode(on: bool) -> void:
+	for p in pieces:
+		if not p.broken:
+			(p.body as StaticBody3D).collision_layer = Phys.PIECE if on else Phys.WORLD | Phys.PIECE
 
 
 ## Standing pieces whose box comes within r of center.

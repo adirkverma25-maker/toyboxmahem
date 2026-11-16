@@ -6,6 +6,8 @@ extends Node3D
 const WORLD := 1
 const CHAR := 2
 const DEBRIS := 4
+## breakable pieces (also on WORLD while standing; the nav build looks at them on this layer alone)
+const PIECE := 8
 const DEFAULT_MASK := WORLD | DEBRIS
 
 var _bodies := {}

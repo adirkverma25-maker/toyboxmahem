@@ -117,6 +117,40 @@ func _run() -> void:
 	var lost_edge: float = 220.0 - d4.pieces[edge_p].hp
 	check(lost_side > lost_edge and lost_edge > 0, "blast_falloff")
 
+	# nav: a wall whose only gap is a breakable panel; routes through it open when it breaks
+	var d5 := await _fresh()
+	phys.box(Vector3(0, -0.5, 0), Vector3(10, 0.5, 10), "wood")
+	phys.box(Vector3(3.2, 1.5, -5.5), Vector3(0.2, 1.5, 4.5), "wood")
+	phys.box(Vector3(3.2, 1.5, 5.5), Vector3(0.2, 1.5, 4.5), "wood")
+	var gap := d5.add_piece(Vector3(3.0, 0, -1.0), Vector3(3.4, 3, 1.0), mat, "soft", "gap", "wood")
+	d5.build()
+	await phys.refresh()
+	var nav := NavGraph.new(phys)
+	nav.destruction = d5
+	await nav.build_async(AABB(Vector3(-9, -1, -9), Vector3(18, 6, 18)))
+	var a_id := nav.nearest(Vector3(-5, 0, 0), false)
+	var b_id := nav.nearest(Vector3(8, 0, 0), false)
+	check(a_id >= 0 and b_id >= 0 and nav.path(a_id, b_id).is_empty(), "path_blocked_until_broken")
+	d5.break_piece(gap, Vector3.RIGHT)
+	nav.open_piece(gap)
+	var route := nav.path(a_id, b_id)
+	var through := false
+	for id in route:
+		var np: Vector3 = nav.nodes[id].pos
+		through = through or (np.x > 1.5 and np.x < 4.5 and absf(np.z) < 1.6)
+	check(route.size() > 0 and through, "path_opens_through_the_hole")
+	nav._save_cache("dtest")
+	var nav2 := NavGraph.new(phys)
+	nav2.destruction = d5
+	var same := nav2._load_cache("dtest") and nav2.nodes.size() == nav.nodes.size()
+	if same:
+		for i in nav.nodes.size():
+			same = same and nav2.nodes[i].blockers == nav.nodes[i].blockers
+			for j in nav.nodes[i].links.size():
+				same = same and nav2.nodes[i].links[j].blockers == nav.nodes[i].links[j].blockers
+	check(same, "cache_roundtrip_keeps_blockers")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(nav._cache_path("dtest")))
+
 	# break sounds exist for every class
 	var ok := true
 	for c in Destruction.CLASSES:

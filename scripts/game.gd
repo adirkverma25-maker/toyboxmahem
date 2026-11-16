@@ -121,12 +121,13 @@ func _init_game() -> void:
 		spots.append({"kind": pr[0], "pos": Vector3(pr[1], 0.0 if d == INF else pr[3] - d, pr[2])})
 	await _step("Teaching toys to walk", 0.5)
 	nav = NavGraph.new(phys)
+	nav.destruction = destruction
 	var connectors := []
 	for pd in map.pads:
 		connectors.append([pd.pos, pd.to, false])
 	for z in map.zips:
 		connectors.append([z.a, z.b, true])
-	nav.build(arena.bounds, "%s-%d" % [map.id, hash("%s|%d" % [str(connectors), phys.static_fingerprint()])], 1.6, connectors)
+	await nav.build_async(arena.bounds, "%s-%d" % [map.id, hash("%s|%d|%d" % [str(connectors), phys.static_fingerprint(), destruction.fingerprint()])], 1.6, connectors)
 	var hy: float = map.highY
 	spawn_points = nav.spawn_points(22, func(n): return n.open >= 6 and n.pos.y < hy - 1)
 	shelf_spawns = nav.spawn_points(10, func(n): return n.pos.y > hy and n.open >= 3)
@@ -150,6 +151,7 @@ func _init_game() -> void:
 	debris = Debris.new()
 	r.world.add_child(debris)
 	destruction.fx_hooks(debris, fx, audio)
+	destruction.on_break = _on_piece_broken
 	pickups = Pickups.new(spots, fx, audio, events)
 	r.world.add_child(pickups)
 	match_ = Match.new(phys, spawn_points)
@@ -671,6 +673,13 @@ func _register_events() -> void:
 
 
 # ------------------------------------------------------------------ match lifecycle
+## A wall or prop broke: routes through it open and bots re-plan.
+func _on_piece_broken(id: int) -> void:
+	nav.open_piece(id)
+	for b in bots:
+		b.repath_soon()
+
+
 func _clear_match() -> void:
 	for a in actors:
 		if a.model:

@@ -586,6 +586,13 @@ func _switch_slot(s: int, now: float) -> void:
 
 
 # ------------------------------------------------------------------ navigation
+## A wall just broke somewhere: plan the current route again (it may now go through the hole).
+func repath_soon() -> void:
+	if _has_goal:
+		_path = []
+		_set_goal(_goal)
+
+
 func _set_goal(p: Vector3) -> void:
 	if _has_goal and _goal.distance_squared_to(p) < 4 and _path.size():
 		return

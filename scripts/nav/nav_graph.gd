@@ -4,9 +4,12 @@ extends RefCounted
 ## 1. Sample walkable surfaces on a grid (multi-level: floor, under the bed, bed top, desk, ramps...).
 ## 2. Link neighbours with a walk test (step height, slopes, drops, wall + head clearance).
 ## 3. Keep the strongly connected region so bots never path to places they can't leave.
-## Nodes: {id, pos, links: [{to, cost, jump, pad, zip}], open}. The built graph is cached per map in user://.
+## Nodes: {id, pos, links: [{to, cost, jump, pad, zip, blockers}], open, blockers}. The built graph is cached
+## per map in user://. Breakable pieces are left out of the walk tests; each node/link remembers which standing
+## pieces are in its way (`blockers`) and stays closed until they're all broken.
 
-const CACHE_VERSION := 5
+const CACHE_VERSION := 6
+static var NONE := PackedInt32Array()
 
 var phys: Phys
 var nodes: Array = []
@@ -14,6 +17,10 @@ var _cell := 4.0
 var _hash := {}
 var _space: PhysicsDirectSpaceState3D
 var _ray := PhysicsRayQueryParameters3D.new()
+## breakable pieces (optional)
+var destruction: Destruction
+## bumps every time a piece breaks (bots compare it to re-plan)
+var revision := 0
 
 
 func _init(p: Phys) -> void:
@@ -31,6 +38,78 @@ func _ray_dist(o: Vector3, d: Vector3, max_d: float) -> float:
 	_ray.to = o + d * max_d
 	var r := _space.intersect_ray(_ray)
 	return INF if r.is_empty() else o.distance_to(r.position)
+
+
+## build() with breakable pieces taken out of the walk tests, then their blockers recorded.
+func build_async(bounds: AABB, cache_key := "", step := 1.6, connectors := []) -> void:
+	if destruction == null:
+		build(bounds, cache_key, step, connectors)
+		return
+	destruction.set_nav_mode(true)
+	await phys.refresh()
+	build(bounds, cache_key, step, connectors)
+	destruction.set_nav_mode(false)
+	await phys.refresh()
+
+
+## Which standing pieces sit in each node's capsule and each link's corridor (pieces are on Phys.PIECE only).
+func _find_blockers() -> void:
+	_space = phys.get_world_3d().direct_space_state
+	var R: float = Cfg.MOVE.radius
+	var cap := CapsuleShape3D.new()
+	cap.radius = R - 0.04
+	cap.height = Cfg.MOVE.standHalfHeight * 2 + cap.radius * 2
+	var q := PhysicsShapeQueryParameters3D.new()
+	q.collision_mask = Phys.PIECE
+	q.shape = cap
+	for n in nodes:
+		var p: Vector3 = n.pos
+		q.transform = Transform3D(Basis(), p + Vector3(0, cap.height / 2 + 0.06, 0))
+		n.blockers = _ids(_space.intersect_shape(q, 8))
+	var box := BoxShape3D.new()
+	q.shape = box
+	for n in nodes:
+		for l in n.links:
+			var a: Vector3 = n.pos
+			var b: Vector3 = nodes[l.to].pos
+			var flat := Vector3(b.x - a.x, 0, b.z - a.z)
+			var len := flat.length()
+			if len < 0.05:
+				l.blockers = NONE
+				continue
+			var lo := maxf(a.y, b.y) + 0.3
+			var hi := maxf(a.y, b.y) + 1.9
+			box.size = Vector3(R * 1.2, hi - lo, len)
+			var mid := (a + b) / 2
+			q.transform = Transform3D(Basis.looking_at(flat / len, Vector3.UP), Vector3(mid.x, (lo + hi) / 2, mid.z))
+			l.blockers = _ids(_space.intersect_shape(q, 8))
+
+
+func _ids(hits: Array) -> PackedInt32Array:
+	var out := PackedInt32Array()
+	for h in hits:
+		var id := destruction.piece_of(h.collider) if destruction else -1
+		if id >= 0 and not out.has(id):
+			out.append(id)
+	return out
+
+
+## True when nothing standing blocks it.
+func clear_of(blockers) -> bool:
+	if blockers == null or destruction == null:
+		return true
+	for id in blockers:
+		if not destruction.is_broken(id):
+			return false
+	return true
+
+
+func node_open(id: int) -> bool:
+	return clear_of(nodes[id].get("blockers"))
+
+
+func open_piece(_id: int) -> void:
+	revision += 1
 
 
 ## connectors: [[from, to, both_ways], ...] jump pads / ziplines. They only count for keeping the areas they
@@ -100,6 +179,8 @@ func build(bounds: AABB, cache_key := "", step := 1.6, connectors := []) -> void
 	for n in nodes:
 		n.links = n.links.filter(func(l): return not l.get("temp", false))
 		n.open = n.links.size()
+	if destruction:
+		_find_blockers()
 	print("[nav] %d nodes in %d ms" % [nodes.size(), Time.get_ticks_msec() - t0])
 	if cache_key != "":
 		_save_cache(cache_key)
@@ -114,8 +195,8 @@ func _save_cache(k: String) -> void:
 	for n in nodes:
 		var links := []
 		for l in n.links:
-			links.append([l.to, snappedf(l.cost, 0.001), 1 if l.jump else 0])
-		out.append([snappedf(n.pos.x, 0.0001), snappedf(n.pos.y, 0.0001), snappedf(n.pos.z, 0.0001), links])
+			links.append([l.to, snappedf(l.cost, 0.001), 1 if l.jump else 0, Array(l.get("blockers", NONE))])
+		out.append([snappedf(n.pos.x, 0.0001), snappedf(n.pos.y, 0.0001), snappedf(n.pos.z, 0.0001), links, Array(n.get("blockers", NONE))])
 	var f := FileAccess.open(_cache_path(k), FileAccess.WRITE)
 	if f:
 		f.store_string(JSON.stringify(out))
@@ -132,10 +213,17 @@ func _load_cache(k: String) -> bool:
 		var d: Array = data[i]
 		var links := []
 		for l in d[3]:
-			links.append({"to": int(l[0]), "cost": float(l[1]), "jump": l[2] == 1, "pad": -1, "zip": -1})
-		nodes.append({"id": i, "pos": Vector3(d[0], d[1], d[2]), "links": links, "open": links.size()})
+			links.append({"to": int(l[0]), "cost": float(l[1]), "jump": l[2] == 1, "pad": -1, "zip": -1, "blockers": _ints(l[3] if l.size() > 3 else [])})
+		nodes.append({"id": i, "pos": Vector3(d[0], d[1], d[2]), "links": links, "open": links.size(), "blockers": _ints(d[4] if d.size() > 4 else [])})
 	_rehash()
 	return true
+
+
+static func _ints(a: Array) -> PackedInt32Array:
+	var out := PackedInt32Array()
+	for v in a:
+		out.append(int(v))
+	return out
 
 
 func _rehash() -> void:
@@ -279,6 +367,8 @@ func nearest(p: Vector3, require_los := true, max_r := 8.0) -> int:
 	var ids := near(p, max_r)
 	ids.sort_custom(func(a, b): return _score(p, a) < _score(p, b))
 	for id in ids:
+		if not node_open(id):
+			continue
 		if require_los:
 			var np: Vector3 = nodes[id].pos
 			if not phys.los(Vector3(p.x, p.y + 0.6, p.z), Vector3(np.x, np.y + 0.6, np.z), true):
@@ -330,6 +420,8 @@ func path(start: int, goal: int) -> Array:
 		for l in nodes[c].links:
 			var to: int = l.to
 			if closed[to]:
+				continue
+			if not clear_of(l.get("blockers")) or not node_open(to):
 				continue
 			var ng: float = g[c] + l.cost
 			if ng < g[to]:
@@ -404,7 +496,7 @@ func link_between(a: int, b: int):
 func random(filter := Callable()) -> int:
 	for i in 40:
 		var id := randi() % nodes.size()
-		if not filter.is_valid() or filter.call(nodes[id]):
+		if node_open(id) and (not filter.is_valid() or filter.call(nodes[id])):
 			return id
 	return randi() % nodes.size()
 
@@ -412,6 +504,7 @@ func random(filter := Callable()) -> int:
 ## Pick well-spread spawn points (farthest point sampling).
 func spawn_points(count: int, filter := Callable()) -> Array:
 	var cand := nodes.filter(func(n): return n.open >= 6) if not filter.is_valid() else nodes.filter(filter)
+	cand = cand.filter(func(n): return node_open(n.id))
 	if cand.is_empty():
 		return [Vector3.ZERO]
 	var out := [cand[cand.size() / 2].pos]
