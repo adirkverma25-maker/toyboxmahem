@@ -15,12 +15,8 @@ const CRACKED := 0.6
 var phys: Phys
 ## [{id, mn, mx, mat, cls, group, surf, hp, max_hp, broken, body}]
 var pieces: Array = []
-## false on online guests: damage only shows chips/cracks locally, the host decides what breaks
-var authority := true
 ## (id: int) after a piece breaks
 var on_break := Callable()
-## (id: int, amount: float, kind: String) whenever a piece takes damage (guests forward it to the host)
-var on_damage := Callable()
 ## (id: int, impulse_dir: Vector3) break effects (debris, dust, sound)
 var on_break_fx := Callable()
 ## (id: int, point: Vector3, normal: Vector3, cracked_now: bool) hit effects
@@ -107,13 +103,7 @@ func damage(id: int, amount: float, kind: String, point: Vector3, normal: Vector
 		if on_hit_fx.is_valid():
 			on_hit_fx.call(id, point, normal, false)
 		return false
-	if on_damage.is_valid():
-		on_damage.call(id, amount, kind)
 	var was_cracked := is_cracked(id)
-	if not authority:
-		if on_hit_fx.is_valid():
-			on_hit_fx.call(id, point, normal, false)
-		return false
 	p.hp = maxf(0.0, p.hp - dmg)
 	if p.hp <= 0:
 		break_piece(id, -normal)
@@ -210,11 +200,26 @@ func reset() -> void:
 		_rebuild(g)
 
 
+## Chips and dust where a hit landed, without any damage (shots replayed for the looks, guests' own hits).
+func hit_fx(id: int, point: Vector3, normal: Vector3) -> void:
+	if id >= 0 and id < pieces.size() and not pieces[id].broken and on_hit_fx.is_valid():
+		on_hit_fx.call(id, point, normal, false)
+
+
 ## An explosion: every standing piece in range takes max_damage with the same falloff as toys get, unless
 ## something solid (another piece, a static wall) is between the blast and its nearest point.
 ## Returns the ids that were hit.
 func blast(center: Vector3, radius: float, max_damage: float) -> Array[int]:
 	var hit: Array[int] = []
+	# apply after all the sight checks so pieces broken by this blast still shield the ones behind them
+	for e in blast_hits(center, radius, max_damage):
+		damage(e.id, e.dmg, "blast", e.point, e.normal)
+		hit.append(e.id)
+	return hit
+
+
+## What a blast would do, without doing it: [{id, dmg, point, normal}].
+func blast_hits(center: Vector3, radius: float, max_damage: float) -> Array:
 	var hits := []
 	for id in pieces_in_sphere(center, radius):
 		var cp := closest_point(id, center)
@@ -227,12 +232,9 @@ func blast(center: Vector3, radius: float, max_damage: float) -> Array[int]:
 		var f := maxf(0.0, 1.0 - maxf(0.0, dist - 0.4) / radius)
 		if f <= 0:
 			continue
-		hits.append([id, max_damage * f, cp, (cp - center).normalized() if dist > 0.05 else Vector3.UP])
-	# apply after the sight checks so pieces broken by this blast still shield the ones behind them
-	for e in hits:
-		damage(e[0], e[1], "blast", e[2], -e[3])
-		hit.append(e[0])
-	return hit
+		var out := (cp - center).normalized() if dist > 0.05 else Vector3.UP
+		hits.append({"id": id, "dmg": max_damage * f, "point": cp, "normal": -out})
+	return hits
 
 
 ## While the nav graph is built, standing pieces leave the WORLD layer so walk tests ignore them.

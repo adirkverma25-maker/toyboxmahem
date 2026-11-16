@@ -679,6 +679,8 @@ func _register_events() -> void:
 ## A wall or prop broke: routes through it open and bots re-plan.
 func _on_piece_broken(id: int) -> void:
 	nav.open_piece(id)
+	if host:
+		host.piece_broken(id)
 	for b in bots:
 		b.repath_soon()
 
@@ -1905,6 +1907,31 @@ func block_drop_at(spots: Array) -> void:
 ##   --online=guest --room=CODE [--server=URL] [--seconds=N]
 ## The host waits for the guests, starts the match and both sides play by themselves (walk, aim at the
 ## nearest enemy, fire), then each prints what it saw.
+## Online test helper: blast the hard wall panel nearest `pa` three times, with this game's own authority
+## (the host applies it, a guest claims it).
+func _test_blow_wall(pa: Actor, role: String) -> void:
+	var best := -1
+	var bd := INF
+	for p in destruction.pieces:
+		if p.cls != "hard" or p.broken:
+			continue
+		var d: float = ((p.mn + p.mx) / 2 as Vector3).distance_to(pa.pos)
+		if d < bd and (role == "host" or d > 0.0):
+			bd = d
+			best = p.id
+	if best < 0:
+		return
+	var pc: Dictionary = destruction.pieces[best]
+	var c: Vector3 = (pc.mn + pc.mx) / 2
+	var shell := {"cfg": Cfg.WEAPONS.crayonCannon, "color": "#e63946", "shooter": pa, "power": 1.0}
+	for i in 4:
+		combat._auth = combat.local_auth
+		combat.explode(c + Vector3(0, 0, 0.4), Vector3.BACK, shell, null)
+		combat._auth = "full"
+		combat._flush_claims()
+	print("[online] %s: blew wall piece %d" % [role, best])
+
+
 func _online_test(role_arg: String, m: String, secs: float, shots: String) -> void:
 	var parts := role_arg.split(":")
 	var role := parts[0]
@@ -2001,6 +2028,13 @@ func _online_test(role_arg: String, m: String, secs: float, shots: String) -> vo
 				last[o] = o.pos
 		if shots != "" and frames == 200:
 			_shot(shots + "/online_%s.png" % role)
+		# destruction sync: the host blows a wall panel near it at ~5 s, the guest one near it at ~7 s
+		if frames == (300 if role == "host" else 420):
+			_test_blow_wall(pa, role)
+		# a guest claim for a piece that doesn't exist and one that's already gone: the host must ignore both
+		if role == "guest" and frames == 600 and destruction.broken_ids().size():
+			Net.send_game({"g": "gpiece", "id": 99999, "dmg": 50, "kind": "blast"})
+			Net.send_game({"g": "gpiece", "id": destruction.broken_ids()[0], "dmg": 50, "kind": "blast"})
 		if frames % 300 == 0:
 			var ws := pa.weapon()
 			print("[online] %s dbg: state %s phase %s alive %s best %s %.1f m los %s weapon %s mag %d fire %s" % [role, state, match_.phase, pa.alive, best.name if best else "-", bd, phys.los(pa.eye_pos(), best.chest_pos(), true) if best else false, ws.id if ws else "-", ws.mag if ws else -1, input.act("fire")])
@@ -2021,8 +2055,10 @@ func _online_test(role_arg: String, m: String, secs: float, shots: String) -> vo
 	for sec in match_.sectors:
 		obj += "%s:%d " % [sec.def.name.substr(0, 6), sec.owner]
 	print("[online] %s: team scores %s %s" % [role, str(match_.team_scores.map(func(x): return snappedf(x, 0.1))), obj])
+	print("[online] %s: broken %s" % [role, str(Array(destruction.broken_ids()))])
 	if host:
 		print("[online] host: applied %d guest states, %d hit claims, %d replayed shots" % [host.stats.states, host.stats.claims, host.stats.shots])
+		print("[online] host: applied %d piece claims, ignored %d stale ones" % [host.stats.get("pieces", 0), host.stats.get("stale_pieces", 0)])
 	if guest:
 		print("[online] guest: %d snapshots, %d events, sent %d hit claims, %d shots" % [guest.stats.snaps, guest.stats.events, guest.stats.claims, guest.stats.shots])
 	if role == "host":

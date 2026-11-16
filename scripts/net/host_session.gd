@@ -19,6 +19,8 @@ var ready_maps := {}
 var stats := {"states": 0, "claims": 0, "shots": 0}
 var _snap_at := 0.0
 var _tick := 0
+## pieces broken since the last snapshot (sent as one "break" event)
+var _broken_queue: Array = []
 var _disposed := false
 
 
@@ -184,6 +186,9 @@ func _on_guest_msg(m: Dictionary, from: String) -> void:
 	var a = _actor_of(from)
 	if a == null or not live():
 		return
+	if kind == "gpiece":
+		_on_piece_claim(m)
+		return
 	var r: Dictionary = g.remotes[a]
 	match kind:
 		"gstate":
@@ -285,17 +290,43 @@ func block_drop(spots: Array) -> void:
 		send_ev({"e": "blockdrop", "spots": spots.map(func(p): return Snapshot.v3(p))})
 
 
+## A wall or prop broke here: tell the guests with the next snapshot.
+func piece_broken(id: int) -> void:
+	if live():
+		_broken_queue.append(id)
+
+
+## A guest's own attack hit a breakable piece. Unknown or already-broken pieces are ignored.
+func _on_piece_claim(m: Dictionary) -> void:
+	var D: Destruction = g.destruction
+	var id := int(m.get("id", -1))
+	var kind := str(m.get("kind", ""))
+	if id < 0 or id >= D.pieces.size() or D.is_broken(id) or not kind in ["bullet", "blast"]:
+		stats.stale_pieces = stats.get("stale_pieces", 0) + 1
+		return
+	stats.pieces = stats.get("pieces", 0) + 1
+	var p: Dictionary = D.pieces[id]
+	D.damage(id, clampf(float(m.get("dmg", 0.0)), 0.0, 400.0), kind, (p.mn + p.mx) / 2, Vector3.UP)
+
+
 ## Called every host frame: sends a snapshot TICK_RATE times a second.
 func update(real_now: float) -> void:
 	if not live() or real_now < _snap_at:
 		return
 	_snap_at = real_now + 1000.0 / net.TICK_RATE
 	_tick += 1
+	if _broken_queue.size():
+		send_ev({"e": "break", "ids": _broken_queue})
+		_broken_queue = []
 	var packed := []
 	for a in g.actors:
 		packed.append(Snapshot.pack_actor(a, g.time))
-	net.send_game({"g": "snap", "tick": _tick, "at": roundf(net.server_now()), "actors": packed,
-		"match": Snapshot.pack_match(g.match_, g.actors, Modes.HILL_SITES), "pickups": Snapshot.pack_pickups(g.pickups.list())})
+	var snap := {"g": "snap", "tick": _tick, "at": roundf(net.server_now()), "actors": packed,
+		"match": Snapshot.pack_match(g.match_, g.actors, Modes.HILL_SITES), "pickups": Snapshot.pack_pickups(g.pickups.list())}
+	# every 2 s the whole list of broken pieces, so a missed event can't leave a guest with a wall the host lost
+	if _tick % (net.TICK_RATE * 2) == 0:
+		snap.bk = Array(g.destruction.broken_ids())
+	net.send_game(snap)
 
 
 func dispose() -> void:

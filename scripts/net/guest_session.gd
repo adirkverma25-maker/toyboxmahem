@@ -28,6 +28,7 @@ func _init(game) -> void:
 	g.combat.on_claim = _on_claim
 	g.combat.on_fire = _on_fire
 	g.combat.on_shield = _on_shield
+	g.combat.on_piece_claim = _on_piece_claim
 
 
 func started() -> bool:
@@ -63,6 +64,12 @@ func _on_fire(shooter: Actor, ws: WeaponState, origin: Vector3, dir: Vector3, mu
 func _on_shield(a: Actor, yaw: float) -> void:
 	if g.player and a == g.player.actor:
 		net.send_game({"g": "gability", "a": {"seat": local_seat, "id": "shield", "yaw": Snapshot.r3(yaw)}})
+
+
+## Our own attack hit a wall or prop: the host decides what it does.
+func _on_piece_claim(id: int, dmg: float, kind: String) -> void:
+	stats.pieces = stats.get("pieces", 0) + 1
+	net.send_game({"g": "gpiece", "id": id, "dmg": snappedf(minf(dmg, 400.0), 0.1), "kind": kind})
 
 
 func _on_host_msg(m: Dictionary, _from: String) -> void:
@@ -102,6 +109,8 @@ func _on_host_msg(m: Dictionary, _from: String) -> void:
 			stats.snaps += 1
 			buffer.push(float(m.at), m.actors)
 			_apply_host_state(m)
+			if m.has("bk"):
+				g.destruction.apply_broken(m.bk)
 		"ev":
 			var ev: Dictionary = m.ev
 			if started():
@@ -189,6 +198,8 @@ func _on_event(ev: Dictionary) -> void:
 			g.on_match_event(e)
 		"blockdrop":
 			g.block_drop_at((ev.spots as Array).map(func(p): return Snapshot.vec(p)))
+		"break":
+			g.destruction.apply_broken(ev.ids)
 
 
 ## Every guest frame: place everyone else, send our own state.
@@ -242,5 +253,6 @@ func dispose() -> void:
 	c.on_claim = Callable()
 	c.on_fire = Callable()
 	c.on_shield = Callable()
+	c.on_piece_claim = Callable()
 	if net.on_game == Callable(self, "_on_host_msg"):
 		net.on_game = Callable()

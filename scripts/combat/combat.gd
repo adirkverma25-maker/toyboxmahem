@@ -21,6 +21,8 @@ var barriers: Barriers
 var destruction: Destruction
 ## explosions hit walls and props this much harder than toys (a Crayon Cannon mag takes down a wall)
 const BLAST_STRUCT := 6.0
+## guest: (id: int, dmg: float, kind: String) its own attack hit a breakable piece (the host applies it)
+var on_piece_claim := Callable()
 var _projectiles: Array = []
 var _mm := {}  # visual -> MultiMesh
 var _buf := {}  # visual -> PackedFloat32Array
@@ -338,7 +340,21 @@ func _hit_piece(world: Dictionary, dmg: float) -> void:
 		return
 	var id := destruction.piece_of(world.collider)
 	if id >= 0:
-		destruction.damage(id, dmg, "bullet", world.point, world.normal)
+		_piece_hit(id, dmg, "bullet", world.point, world.normal)
+
+
+## Damage a piece the way the current shot's authority allows: replays only show chips, a guest's own hits are
+## claimed (the host decides), everything else is applied here.
+func _piece_hit(id: int, dmg: float, kind: String, point: Vector3, normal: Vector3) -> void:
+	match _auth:
+		"visual":
+			destruction.hit_fx(id, point, normal)
+		"claims":
+			destruction.hit_fx(id, point, normal)
+			if on_piece_claim.is_valid():
+				on_piece_claim.call(id, dmg, kind)
+		_:
+			destruction.damage(id, dmg, kind, point, normal)
 
 
 func _hit_barrier(b: Dictionary, point: Vector3, dmg: float) -> void:
@@ -555,7 +571,8 @@ func explode(point: Vector3, normal: Vector3, p: Dictionary, direct) -> void:
 	if bricks:
 		bricks.blast(center, ex.radius, 3.2)
 	if destruction:
-		destruction.blast(center, ex.radius, ex.maxDamage * p.power * BLAST_STRUCT)
+		for e in destruction.blast_hits(center, ex.radius, ex.maxDamage * p.power * BLAST_STRUCT):
+			_piece_hit(e.id, e.dmg, "blast", e.point, e.normal)
 	var shooter: Actor = p.shooter
 	for a in actors.call():
 		if not a.alive or a == direct:
@@ -633,7 +650,9 @@ func jab(attacker: Actor) -> Actor:
 		if not wall.is_empty():
 			_hit_barrier(wall.b, eye + fwd * wall.t, J.damage)
 		else:
+			_auth = local_auth
 			_hit_piece(phys.raycast(eye, fwd, J.range), J.damage)
+			_auth = "full"
 		return null
 	var point := best.chest_pos()
 	var push := Vector3(point.x - attacker.pos.x, 0, point.z - attacker.pos.z).normalized()
