@@ -35,7 +35,9 @@ func _init(p: Phys) -> void:
 	name = "Destruction"
 
 
-func add_piece(mn: Vector3, mx: Vector3, mat: Material, cls: String, group: String, surf: String) -> int:
+## opts: round (rounded edges, untextured), tile (texture repeats per metre, default 1/3),
+## uv_origin (Vector3 where the texture starts, so neighbouring panels of one wall line up; default mn)
+func add_piece(mn: Vector3, mx: Vector3, mat: Material, cls: String, group: String, surf: String, opts := {}) -> int:
 	var id := pieces.size()
 	var hp: float = CLASSES[cls].hp
 	var body := StaticBody3D.new()
@@ -52,7 +54,8 @@ func add_piece(mn: Vector3, mx: Vector3, mat: Material, cls: String, group: Stri
 	body.position = (mn + mx) / 2
 	phys.add_child(body)
 	pieces.append({"id": id, "mn": mn, "mx": mx, "mat": mat, "cls": cls, "group": group, "surf": surf,
-		"hp": hp, "max_hp": hp, "broken": false, "body": body})
+		"hp": hp, "max_hp": hp, "broken": false, "body": body,
+		"round": float(opts.get("round", 0.0)), "tile": float(opts.get("tile", 1.0 / 3)), "uv_origin": opts.get("uv_origin", mn)})
 	if not _groups.has(group):
 		_groups[group] = {"node": null, "ids": []}
 	_groups[group].ids.append(id)
@@ -258,6 +261,21 @@ func _darker(mat: Material) -> Material:
 	return _dark[mat]
 
 
+## A box whose texture is laid out from `origin` in world space, so a wall cut into panels looks like one wall.
+static func _world_uv_box(size: Vector3, center: Vector3, origin: Vector3, tile: float) -> Geo:
+	var g := Geo.box(size.x, size.y, size.z)
+	for k in g.v.size():
+		var w: Vector3 = g.v[k] + center - origin
+		var nr: Vector3 = g.n[k]
+		if absf(nr.x) > 0.5:
+			g.uv[k] = Vector2(-w.z * signf(nr.x), w.y) * tile
+		elif absf(nr.z) > 0.5:
+			g.uv[k] = Vector2(w.x * signf(nr.z), w.y) * tile
+		else:
+			g.uv[k] = Vector2(w.x, w.z) * tile
+	return g
+
+
 func _rebuild(group: String) -> void:
 	var g: Dictionary = _groups[group]
 	if g.node:
@@ -276,9 +294,12 @@ func _rebuild(group: String) -> void:
 		if is_cracked(id):
 			mat = _darker(mat)
 		var geo: Geo
+		var center: Vector3 = (p.mn + p.mx) / 2
 		if mat is BaseMaterial3D and (mat as BaseMaterial3D).albedo_texture != null:
-			geo = Geo.tiled_box(size.x, size.y, size.z, 1.0 / 3)
+			geo = _world_uv_box(size, center, p.uv_origin, p.tile)
+		elif p.round > 0:
+			geo = Geo.rounded_box(size.x, size.y, size.z, 2, p.round)
 		else:
 			geo = Geo.box(size.x, size.y, size.z)
-		b.add_at(geo, mat, (p.mn + p.mx) / 2)
+		b.add_at(geo, mat, center)
 	b.build(n)

@@ -46,6 +46,7 @@ pointing/emulate_mouse_from_touch=false
 [physics]
 
 3d/physics_engine="Jolt Physics"
+jolt_physics_3d/motion_queries/use_enhanced_internal_edge_removal=true
 common/physics_ticks_per_second=60
 3d/default_gravity=18.0
 

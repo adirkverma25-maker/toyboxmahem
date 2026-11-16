@@ -18,11 +18,20 @@ func _init(b: Batcher, p: Phys) -> void:
 
 ## A box that can be shot or blown apart. cls: glass | soft | hard; pieces in one group share a mesh.
 ## Returns the piece id, or -1 when this map isn't destructible (then it's a normal static box).
-func breakable_box(mn: Array, mx: Array, mat: Material, cls: String, group: String, surf := "wood") -> int:
+## opts: round, tile, uv_origin ([x, y, z]) - see Destruction.add_piece.
+func breakable_box(mn: Array, mx: Array, mat: Material, cls: String, group: String, surf := "wood", opts := {}) -> int:
 	if destruction == null:
-		box(mn, mx, mat, surf)
+		var o := {}
+		if opts.has("round"):
+			o.round = opts.round
+		elif mat is BaseMaterial3D and (mat as BaseMaterial3D).albedo_texture != null:
+			o.tile = opts.get("tile", 1.0 / 3)
+		box(mn, mx, mat, surf, o)
 		return -1
-	return destruction.add_piece(v(mn), v(mx), mat, cls, group, surf)
+	var po := opts.duplicate()
+	if po.has("uv_origin"):
+		po.uv_origin = v(po.uv_origin)
+	return destruction.add_piece(v(mn), v(mx), mat, cls, group, surf, po)
 
 
 static func v(a) -> Vector3:

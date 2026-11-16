@@ -8,6 +8,8 @@ const CHAR := 2
 const DEBRIS := 4
 ## breakable pieces (also on WORLD while standing; the nav build looks at them on this layer alone)
 const PIECE := 8
+## break chunks: bounce off the world only (no toys, no bullets, no sight checks)
+const CHUNK := 16
 const DEFAULT_MASK := WORLD | DEBRIS
 
 var _bodies := {}

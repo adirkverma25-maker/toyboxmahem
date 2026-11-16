@@ -19,6 +19,8 @@ var reduced_motion := false
 var barriers: Barriers
 ## breakable walls and cover (null on maps built without it)
 var destruction: Destruction
+## explosions hit walls and props this much harder than toys (a Crayon Cannon mag takes down a wall)
+const BLAST_STRUCT := 6.0
 var _projectiles: Array = []
 var _mm := {}  # visual -> MultiMesh
 var _buf := {}  # visual -> PackedFloat32Array
@@ -553,7 +555,7 @@ func explode(point: Vector3, normal: Vector3, p: Dictionary, direct) -> void:
 	if bricks:
 		bricks.blast(center, ex.radius, 3.2)
 	if destruction:
-		destruction.blast(center, ex.radius, ex.maxDamage * p.power)
+		destruction.blast(center, ex.radius, ex.maxDamage * p.power * BLAST_STRUCT)
 	var shooter: Actor = p.shooter
 	for a in actors.call():
 		if not a.alive or a == direct:

@@ -243,6 +243,9 @@ func _autotest() -> void:
 		if a.begins_with("--online="):
 			_online_test(a.trim_prefix("--online="), m if m != "" else "ffa", secs, shots)
 			return
+	if screen == "destruct":
+		await DestructTest.run(self)
+		return
 	if screen == "snipertest":
 		# fire each sniper at a full-health, full-shield dummy 40 m away: body and head
 		await get_tree().create_timer(1.0).timeout

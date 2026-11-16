@@ -38,7 +38,7 @@ func _ready() -> void:
 	_live.resize(MAX)
 	for i in MAX:
 		var b := RigidBody3D.new()
-		b.collision_layer = Phys.DEBRIS
+		b.collision_layer = Phys.CHUNK
 		b.collision_mask = Phys.WORLD
 		b.mass = 0.4
 		b.linear_damp = 0.3
