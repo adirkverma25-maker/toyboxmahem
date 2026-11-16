@@ -32,7 +32,7 @@ Up to 8 players per room. Everyone needs the same version of the game.
 
 ## Modes
 
-Walls, cover and glass can be shot and blown apart: blast your own way into a building.
+Walls, cover and glass can be shot and blown apart: blast your own way into a building. Every window breaks with one shot, and a frag grenade or explosive mine blows a hole in the wall it hits.
 
 ## Classes
 

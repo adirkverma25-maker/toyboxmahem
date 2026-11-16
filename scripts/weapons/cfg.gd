@@ -275,10 +275,10 @@ const CLASS_ORDER := ["light", "medium"]
 ## pieceDamage = what the blast does to walls and props (two frags take down a hard wall).
 const GADGETS := {
 	"fragGrenade": {"id": "fragGrenade", "gadget": true, "name": "Frag Grenade", "short": "Frag", "cooldown": 14.0,
-		"blurb": "Thrown in an arc, goes off on impact. Big blast; two take down a wall.",
+		"blurb": "Thrown in an arc, goes off on impact. Big blast that blows a hole in the wall it hits.",
 		"damage": 20.0, "headMult": 1.0, "pellets": 1,
 		"projectile": {"kind": "projectile", "visual": "grenade", "speed": 21.0, "gravity": 18.0, "radius": 0.14, "life": 2.4},
-		"explosion": {"radius": 4.5, "maxDamage": 110.0, "selfDamageMult": 0.5, "pieceDamage": 380.0},
+		"explosion": {"radius": 4.5, "maxDamage": 110.0, "selfDamageMult": 0.5, "pieceDamage": 800.0},
 		"colors": {"main": "#4f6b3a", "accent": "#ffd23f", "glow": "#ffb347", "tracer": "#556b2f"}},
 	"pyroGrenade": {"id": "pyroGrenade", "gadget": true, "name": "Pyro Grenade", "short": "Pyro", "cooldown": 18.0,
 		"blurb": "Bursts into a patch of fire that burns anyone standing in it for 7 seconds.",
@@ -291,7 +291,7 @@ const GADGETS := {
 		"damage": 0.0, "headMult": 1.0, "pellets": 1,
 		"projectile": {"kind": "projectile", "visual": "mine", "speed": 9.0, "gravity": 18.0, "radius": 0.16, "life": 4.0},
 		"mine": {"arm": 0.8, "trigger": 2.4, "life": 60.0, "max": 2},
-		"explosion": {"radius": 3.8, "maxDamage": 120.0, "selfDamageMult": 0.5, "pieceDamage": 360.0},
+		"explosion": {"radius": 3.8, "maxDamage": 120.0, "selfDamageMult": 0.5, "pieceDamage": 850.0},
 		"colors": {"main": "#3d405b", "accent": "#ff4d6d", "glow": "#ffb347", "tracer": "#3d405b"}},
 	"pyroMine": {"id": "pyroMine", "gadget": true, "name": "Pyro Mine", "short": "Fire Mine", "cooldown": 16.0,
 		"blurb": "A mine that bursts into fire when an enemy comes close. Two at a time.",

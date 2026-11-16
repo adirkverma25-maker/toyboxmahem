@@ -150,7 +150,7 @@ static func build(root: Node3D, phys: Phys) -> Dictionary:
 	# house: door + window on the wall behind the porch
 	B.box([Y.x1 - 0.15, 7, -3.5], [Y.x1 + 0.1, 22, 3.5], Mats.plastic("#4d6fa8", {"rough": 0.5}), "")
 	B.box([Y.x1 - 0.25, 13.5, 2.2], [Y.x1 - 0.05, 14.5, 2.9], Mats.metal("#e2c36a", 0.3), "")
-	B.box([Y.x1 - 0.15, 12, -9.5], [Y.x1 + 0.1, 20, -5], M.glass, "")
+	B.breakable_box([Y.x1 - 0.15, 12, -9.5], [Y.x1 - 0.05, 20, -5], Mats.translucent("#9fd8ff", 0.5), "glass", "house-glass", "glass")
 	B.box([Y.x1 - 0.2, 11.6, -9.9], [Y.x1 + 0.1, 12, -4.6], M.trim, "")
 	B.box([Y.x1 - 0.2, 20, -9.9], [Y.x1 + 0.1, 20.4, -4.6], M.trim, "")
 
@@ -295,7 +295,7 @@ static func build(root: Node3D, phys: Phys) -> Dictionary:
 	# ---------------------------------------------------------------- DUMP TRUCK (W)
 	B.box([-31, 0, -5], [-19, 2, 1], Mats.plastic("#343a40", {"rough": 0.5}), "plastic", {"round": 0.2})
 	B.box([-31, 2, -5], [-27.5, 5.5, 1], red, "plastic", {"round": 0.4})
-	B.box([-27.6, 3.4, -4.4], [-27.4, 5, 0.4], M.glass, "")
+	B.breakable_box([-27.62, 3.4, -4.4], [-27.42, 5, 0.4], Mats.translucent("#9fd8ff", 0.5), "glass", "truck-glass", "glass")
 	B.wedge([-19, 2, -2], -PI / 2, 8.5, 2.6, 5.6, yellow, "plastic")
 	for z in [-4.9, 0.6]:
 		B.obox([-23.25, 3.9, z], [8.9, 1.0, 0.3], E(0, 0, -atan2(2.6, 8.5)), yellow, "")

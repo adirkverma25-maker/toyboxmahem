@@ -157,13 +157,15 @@ static func baseboard_texture() -> Texture2D:
 
 
 ## One 3 x 3 m facade bay: wall, a framed window with a sill (or a shop window for ground floors).
-static func facade_texture(key: String, wall: String, win: String, trim: String, shop := false) -> Texture2D:
-	return Tex.make("toycity:" + key + (":shop" if shop else ""), 128, 128, func(ci: CanvasItem):
+static func facade_texture(key: String, wall: String, win: String, trim: String, shop := false, plain := false) -> Texture2D:
+	return Tex.make("toycity:" + key + (":shop" if shop else "") + (":plain" if plain else ""), 128, 128, func(ci: CanvasItem):
 		ci.draw_rect(Rect2(0, 0, 128, 128), Color(wall))
 		# brick-ish texture lines
 		var shade := Color(wall).darkened(0.08)
 		for y in range(8, 128, 16):
 			ci.draw_line(Vector2(0, y), Vector2(128, y), shade, 1)
+		if plain:
+			return  # the walls have real windows now (glass you can shoot out)
 		if shop:
 			ci.draw_rect(Rect2(14, 30, 100, 86), Color(trim))
 			ci.draw_rect(Rect2(20, 36, 88, 80), Color(win))
@@ -217,7 +219,29 @@ static func _slab_with_hole(B: Builder, mn: Array, mx: Array, hole: Array, mat: 
 ## the CORNER at each end of the run stay solid, so a building never ends up floating).
 const PANEL := 1.8
 const CORNER := 0.6
-static func _wall(B: Builder, axis: String, a0: float, a1: float, c0: float, c1: float, y0: float, y1: float, doors: Array, mat: Material, trim: Material, group := "") -> void:
+## windows: "" none, "home" (a window in each panel), "shop" (big shop windows): a real opening with a glass pane
+## (breakable) and a frame round it (jambs, sill and header are hard pieces; the header and glass rest on them).
+static var _glass_mat: StandardMaterial3D
+static func _wall(B: Builder, axis: String, a0: float, a1: float, c0: float, c1: float, y0: float, y1: float, doors: Array, mat: Material, trim: Material, group := "", windows := "") -> void:
+	if _glass_mat == null:
+		_glass_mat = Mats.translucent("#bfe3f5", 0.38)
+		_glass_mat.roughness = 0.05
+	var piece := func(q0: float, q1: float, ya: float, yb: float, cls: String, rests: bool) -> void:
+		if q1 - q0 < 0.03 or yb - ya < 0.03:
+			return
+		var origin2 := [a0, y0, c0] if axis == "x" else [c0, y0, a0]
+		var m: Material = _glass_mat if cls == "glass" else mat
+		var cc0 := c0
+		var cc1 := c1
+		if cls == "glass":
+			var mid := (c0 + c1) / 2.0
+			cc0 = mid - 0.03
+			cc1 = mid + 0.03
+		var opts := {"uv_origin": origin2, "rests": rests}
+		if axis == "x":
+			B.breakable_box([q0, ya, cc0], [q1, yb, cc1], m, cls, group, "glass" if cls == "glass" else "wood", opts)
+		else:
+			B.breakable_box([cc0, ya, q0], [cc1, yb, q1], m, cls, group, "glass" if cls == "glass" else "wood", opts)
 	var solid := func(p0: float, p1: float, ya: float, yb: float) -> void:
 		if p1 - p0 < 0.05 or yb - ya < 0.05:
 			return
@@ -246,10 +270,19 @@ static func _wall(B: Builder, axis: String, a0: float, a1: float, c0: float, c1:
 		for i in n:
 			var q0 := p0 + i * step
 			var q1 := q0 + step
-			if axis == "x":
-				B.breakable_box([q0, ya, c0], [q1, yb, c1], mat, "hard", group, "wood", {"uv_origin": origin})
-			else:
-				B.breakable_box([c0, ya, q0], [c1, yb, q1], mat, "hard", group, "wood", {"uv_origin": origin})
+			if windows == "" or step < 1.1 or yb - ya < 2.2:
+				piece.call(q0, q1, ya, yb, "hard", false)
+				continue
+			# a window: jambs either side, a sill below, a header above, glass in the middle
+			var ow := minf(1.3 if windows == "shop" else 1.0, step - 0.5)
+			var jamb := (step - ow) / 2.0
+			var sill: float = ya + (0.6 if windows == "shop" else 0.9)
+			var head: float = minf(yb - 0.3, sill + (1.9 if windows == "shop" else 1.3))
+			piece.call(q0, q0 + jamb, ya, yb, "hard", false)
+			piece.call(q1 - jamb, q1, ya, yb, "hard", false)
+			piece.call(q0 + jamb, q1 - jamb, ya, sill, "hard", false)
+			piece.call(q0 + jamb, q1 - jamb, head, yb, "hard", true)
+			piece.call(q0 + jamb, q1 - jamb, sill, head, "glass", true)
 	var p := a0
 	var ds := doors.duplicate()
 	ds.sort_custom(func(x, y): return x[0] < y[0])
@@ -287,8 +320,8 @@ static func _building(B: Builder, root: Node3D, d: Dictionary, key: String, ligh
 	var WT := 0.4  # wall thickness
 	var SL := 0.3  # floor slab thickness
 	var LANE := 1.8  # staircase lane width
-	var wall := Mats.textured(facade_texture(key, d.wall, d.win, d.trim), 0.7)
-	var shop := Mats.textured(facade_texture(key, d.wall, d.win, d.trim, true), 0.6)
+	var wall := Mats.textured(facade_texture(key, d.wall, d.win, d.trim, false, true), 0.7)
+	var shop := Mats.textured(facade_texture(key, d.wall, d.win, d.trim, true, true), 0.6)
 	var trim := Mats.plastic(d.trim, {"rough": 0.4})
 	var roof_m := Mats.std("#8d99ae", 0.9)
 	var floor_m := Mats.textured(Tex.wood("floor"), 0.6, d.floor)
@@ -362,10 +395,10 @@ static func _building(B: Builder, root: Node3D, d: Dictionary, key: String, ligh
 	for dd in d.doors:
 		doors[dd[0]].append([dd[1], dd[2], dd[3]])
 	var gg := key + "-g"
-	_wall(B, "x", gx0, gx1, gz0, gz0 + WT, 0, GF, doors.n, shop, trim, gg)
-	_wall(B, "x", gx0, gx1, gz1 - WT, gz1, 0, GF, doors.s, shop, trim, gg)
-	_wall(B, "z", gz0 + WT, gz1 - WT, gx0, gx0 + WT, 0, GF, doors.w, shop, trim, gg)
-	_wall(B, "z", gz0 + WT, gz1 - WT, gx1 - WT, gx1, 0, GF, doors.e, shop, trim, gg)
+	_wall(B, "x", gx0, gx1, gz0, gz0 + WT, 0, GF, doors.n, shop, trim, gg, "shop")
+	_wall(B, "x", gx0, gx1, gz1 - WT, gz1, 0, GF, doors.s, shop, trim, gg, "shop")
+	_wall(B, "z", gz0 + WT, gz1 - WT, gx0, gx0 + WT, 0, GF, doors.w, shop, trim, gg, "shop")
+	_wall(B, "z", gz0 + WT, gz1 - WT, gx1 - WT, gx1, 0, GF, doors.e, shop, trim, gg, "shop")
 	B.box([gx0 + WT, 0, gz0 + WT], [gx1 - WT, 0.03, gz1 - WT], floor_m, "", {"tile": 1.0 / 6, "cast": false})
 	# ---- upper walls (full footprint, painted windows inside and out)
 	# one band per storey, so a blast takes out a panel of one floor
@@ -373,10 +406,10 @@ static func _building(B: Builder, root: Node3D, d: Dictionary, key: String, ligh
 		var b0: float = levels[k]
 		var b1: float = levels[k + 1] if k + 2 < levels.size() else R - SL
 		var sg := "%s-s%d" % [key, k]
-		_wall(B, "x", x0, x1, z0, z0 + WT, b0, b1, [], wall, trim, sg)
-		_wall(B, "x", x0, x1, z1 - WT, z1, b0, b1, [], wall, trim, sg)
-		_wall(B, "z", z0 + WT, z1 - WT, x0, x0 + WT, b0, b1, [], wall, trim, sg)
-		_wall(B, "z", z0 + WT, z1 - WT, x1 - WT, x1, b0, b1, [], wall, trim, sg)
+		_wall(B, "x", x0, x1, z0, z0 + WT, b0, b1, [], wall, trim, sg, "home")
+		_wall(B, "x", x0, x1, z1 - WT, z1, b0, b1, [], wall, trim, sg, "home")
+		_wall(B, "z", z0 + WT, z1 - WT, x0, x0 + WT, b0, b1, [], wall, trim, sg, "home")
+		_wall(B, "z", z0 + WT, z1 - WT, x1 - WT, x1, b0, b1, [], wall, trim, sg, "home")
 	# ---- storey floors (each with the opening of the flight that arrives there) and the roof with its hatch
 	for j in range(1, levels.size()):
 		var y: float = levels[j]
@@ -684,7 +717,10 @@ static func build(root: Node3D, phys: Phys) -> Dictionary:
 	# the bus parked on the market street (big cover)
 	var bus := Mats.plastic("#ffbe0b", {"rough": 0.3})
 	B.box([2.6, 0.6, 18.6], [9.2, 3.4, 21.0], bus, "plastic", {"round": 0.35})
-	B.box([2.7, 2.0, 18.55], [9.1, 2.9, 21.05], Mats.std("#9fd8ff", 0.05, 0.2), "")
+	var bus_glass := Mats.translucent("#9fd8ff", 0.5)
+	for bz in [[18.5, 18.56], [21.04, 21.1]]:
+		for bx in [[2.9, 4.9], [5.0, 7.0], [7.1, 9.0]]:
+			B.breakable_box([bx[0], 2.0, bz[0]], [bx[1], 2.9, bz[1]], bus_glass, "glass", "bus-glass", "glass")
 	for w in [[3.8, 18.5], [3.8, 21.1], [8.0, 18.5], [8.0, 21.1]]:
 		B.geo(Geo.cylinder(0.6, 0.6, 0.35, 16), Mats.rubber("#1d1d1d"), [w[0], 0.6, w[1]], E(PI / 2, 0, 0))
 	_cone(B, [10.5, 0, 18.4], orange, white)
@@ -705,7 +741,7 @@ static func build(root: Node3D, phys: Phys) -> Dictionary:
 	B.geo(Geo.sphere(0.34, 10, 8), red, [-10.4, 1.0, -11.2])
 	B.breakable_box([10.2, 0, 11.6], [10.9, 1.4, 12.3], blue, "soft", "props", "plastic", {"round": 0.15})
 	B.box([-12.6, 0, 11.2], [-11.2, 3.2, 12.6], red, "plastic", {"round": 0.1})
-	B.box([-12.5, 1.0, 11.15], [-11.3, 2.8, 11.2], Mats.std("#9fd8ff", 0.05, 0.2), "")
+	B.breakable_box([-12.5, 1.0, 11.12], [-11.3, 2.8, 11.19], Mats.translucent("#9fd8ff", 0.5), "glass", "phone-glass", "glass")
 	# crates on the ring road corners (cover)
 	for p in [[-27.5, -27.5], [27.5, 27.5], [-27.5, 27.5]]:
 		B.breakable_box([p[0] - 0.9, 0, p[1] - 0.9], [p[0] + 0.9, 1.8, p[1] + 0.9], M.cardboard, "soft", "crates", "cardboard")

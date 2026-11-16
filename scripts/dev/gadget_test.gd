@@ -1,7 +1,7 @@
 class_name GadgetTest
 extends RefCounted
 ## Dev check (--screen=gadgettest --map=toycity): throw each gadget at a dummy in Training and report the
-## damage; mines get a dummy walked onto them; two frags at a hard wall panel must break it.
+## damage; mines get a dummy walked onto them; one frag at a hard wall panel must break it.
 
 static func run(g) -> void:
 	var tree: SceneTree = g.get_tree()
@@ -75,7 +75,7 @@ static func run(g) -> void:
 		var after_one: bool = D.is_broken(panel)
 		g.combat.explode(c, Vector3.UP, shell, null)
 		print("[gadget] frag vs wall: broken after one %s, after two %s" % [after_one, D.is_broken(panel)])
-		if after_one or not D.is_broken(panel):
+		if not after_one:  # one frag blows a hole in the wall it hits
 			bad += 1
 	print("[gadget] %d failures" % bad)
 	tree.quit(bad)

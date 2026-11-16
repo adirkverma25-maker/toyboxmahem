@@ -180,9 +180,14 @@ static func run(g) -> void:
 			print("[destruct] FAIL: a bullet damaged a hard wall")
 			bad += 1
 	if glass_id >= 0:
-		await _shoot_at(g, pa, glass_id, "plasti9")
-		print("[destruct] glass broke on one pistol shot: %s" % D.is_broken(glass_id))
-		if not D.is_broken(glass_id):
+		# the first pane with a clear line of fire
+		var shot_id := -1
+		for p in D.pieces:
+			if p.cls == "glass" and not p.broken and await _shoot_at(g, pa, p.id, "plasti9"):
+				shot_id = p.id
+				break
+		print("[destruct] glass broke on one pistol shot: %s" % (shot_id >= 0 and D.is_broken(shot_id)))
+		if shot_id < 0 or not D.is_broken(shot_id):
 			bad += 1
 	print("[destruct] %d failures" % bad)
 	tree.quit(bad)
@@ -198,7 +203,7 @@ static func _length(nav: NavGraph, route: Array) -> float:
 
 
 ## Stand 3 m in front of the piece (on the side with open air) and fire one shot at its middle.
-static func _shoot_at(g, pa: Actor, id: int, wid: String) -> void:
+static func _shoot_at(g, pa: Actor, id: int, wid: String) -> bool:
 	var D: Destruction = g.destruction
 	var p: Dictionary = D.pieces[id]
 	var c: Vector3 = (p.mn + p.mx) / 2
@@ -214,4 +219,5 @@ static func _shoot_at(g, pa: Actor, id: int, wid: String) -> void:
 		await g.get_tree().process_frame
 		g.combat.fire(pa, pa.weapon(), eye, -side, eye, 0.0)
 		await g.get_tree().process_frame
-		return
+		return true
+	return false

@@ -598,17 +598,29 @@ static func _add_car(B: Builder, base: Array, yaw: float, color: String) -> void
 		var p := rot * Vector3(px, py, pz)
 		return [base[0] + p.x, base[1] + p.y, base[2] + p.z]
 	B.geo(Geo.rounded_box(1.9, 0.8, 3.6, 3, 0.3), body, at.call(0, 0.75, 0), rot)
-	B.geo(Geo.rounded_box(1.6, 0.7, 1.9, 3, 0.3), body, at.call(0, 1.4, -0.2), rot)
-	var glass := Mats.std("#9fd8ff", 0.05, 0.2)
-	glass.clearcoat_enabled = true
-	glass.clearcoat = 1.0
-	B.geo(Geo.rounded_box(1.5, 0.5, 1.7, 2, 0.2), glass, at.call(0, 1.45, -0.2), rot, [1.08, 1, 1.08])
+	# cabin: roof on four corner pillars, glass all round (the windows can be shot out)
+	B.geo(Geo.rounded_box(1.6, 0.12, 1.9, 2, 0.06), body, at.call(0, 1.72, -0.2), rot)
+	for cp in [[-0.74, 0.69], [0.74, 0.69], [-0.74, -1.09], [0.74, -1.09]]:
+		B.geo(Geo.box(0.1, 0.6, 0.1), body, at.call(cp[0], 1.4, cp[1]), rot)
+	var glass := Mats.translucent("#9fd8ff", 0.45)
+	glass.roughness = 0.05
+	# panes as boxes; the car turns in quarter turns for this, so they line up with the cabin
+	var q := Basis(Vector3.UP, roundf(yaw / (PI / 2)) * (PI / 2))
+	var pane := func(cx: float, cz: float, hx: float, hz: float) -> void:
+		var c: Vector3 = Builder.v(at.call(cx, 1.4, cz))
+		var h := (q * Vector3(hx, 0.29, hz)).abs()
+		B.breakable_box([c.x - h.x, c.y - h.y, c.z - h.z], [c.x + h.x, c.y + h.y, c.z + h.z], glass, "glass", "car-glass", "glass")
+	pane.call(0, 0.74, 0.7, 0.03)
+	pane.call(0, -1.14, 0.7, 0.03)
+	pane.call(-0.79, -0.2, 0.03, 0.85)
+	pane.call(0.79, -0.2, 0.03, 0.85)
 	for w in [[-0.95, 1.1], [0.95, 1.1], [-0.95, -1.15], [0.95, -1.15]]:
 		B.geo(Geo.cylinder(0.45, 0.45, 0.35, 16), Mats.rubber("#1d1d1d"), at.call(w[0], 0.45, w[1]), E(0, yaw, PI / 2))
 		B.geo(Geo.cylinder(0.22, 0.22, 0.37, 10), Mats.metal("#dddddd"), at.call(w[0], 0.45, w[1]), E(0, yaw, PI / 2))
 	B.geo(Geo.sphere(0.16, 8, 6), Mats.glow("#fff6c2", 2), at.call(-0.6, 0.85, 1.8), rot)
 	B.geo(Geo.sphere(0.16, 8, 6), Mats.glow("#fff6c2", 2), at.call(0.6, 0.85, 1.8), rot)
-	B.phys.box(Builder.v(at.call(0, 0.85, 0)), Vector3(0.95, 0.85, 1.8), "plastic", rot)
+	B.phys.box(Builder.v(at.call(0, 0.58, 0)), Vector3(0.95, 0.58, 1.8), "plastic", rot)
+	B.phys.box(Builder.v(at.call(0, 1.72, -0.2)), Vector3(0.8, 0.06, 0.95), "plastic", rot)
 
 
 static func _add_sign(root: Node3D, txt: String, pos: Array, color: String) -> void:

@@ -5,7 +5,7 @@ extends Node3D
 ## prop), so a break only rebuilds that group's mesh. Ids follow build order, so host and guests agree.
 
 const CLASSES := {
-	"glass": {"hp": 20.0, "bullet": 1.0, "blast": 1.0},
+	"glass": {"hp": 8.0, "bullet": 1.0, "blast": 1.0},
 	"soft": {"hp": 220.0, "bullet": 1.0, "blast": 3.0},
 	"hard": {"hp": 700.0, "bullet": 0.0, "blast": 1.0},
 }
@@ -80,15 +80,18 @@ func _find_supports() -> void:
 		if not p.rests:
 			continue
 		var sup := PackedInt32Array()
-		for q in pieces:
-			if q.id == p.id or absf(q.mx.y - p.mn.y) > 0.06:
+		var mates: Array = _groups[p.group].ids
+		for qi in mates:
+			var q: Dictionary = pieces[qi]
+			if q.id == p.id or q.cls == "glass" or absf(q.mx.y - p.mn.y) > 0.06:  # glass never holds anything up
 				continue
 			if q.mx.x > p.mn.x + 0.01 and q.mn.x < p.mx.x - 0.01 and q.mx.z > p.mn.z + 0.01 and q.mn.z < p.mx.z - 0.01:
 				sup.append(q.id)
 		if sup.is_empty():
 			# nothing underneath (a lintel over a doorway): it hangs on the pieces either side of it
-			for q in pieces:
-				if q.id == p.id or q.mx.y < p.mn.y + 0.05 or q.mn.y > p.mx.y - 0.05:
+			for qi in mates:
+				var q: Dictionary = pieces[qi]
+				if q.id == p.id or q.cls == "glass" or q.mx.y < p.mn.y + 0.05 or q.mn.y > p.mx.y - 0.05:
 					continue
 				var touch_x: bool = (absf(q.mx.x - p.mn.x) < 0.06 or absf(q.mn.x - p.mx.x) < 0.06) and q.mx.z > p.mn.z + 0.01 and q.mn.z < p.mx.z - 0.01
 				var touch_z: bool = (absf(q.mx.z - p.mn.z) < 0.06 or absf(q.mn.z - p.mx.z) < 0.06) and q.mx.x > p.mn.x + 0.01 and q.mn.x < p.mx.x - 0.01
