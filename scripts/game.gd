@@ -268,7 +268,7 @@ func _autotest() -> void:
 				pa.slot = 0
 				target.spawn(Vector3(20, 0, -26.4), 0, time)
 				target.spawn_protect_until = 0
-				target.health = Cfg.COMBAT.maxHealth
+				target.health = target.max_health
 				target.shield = Cfg.COMBAT.maxShield
 				await get_tree().process_frame
 				var eye := pa.eye_pos()
@@ -1116,7 +1116,7 @@ func _update_revives(dt: float, now: float) -> void:
 func _revive(d: Actor, by: Actor) -> void:
 	var pos := d.pos + Vector3(0, 0.05, 0)
 	d.spawn(pos, d.yaw, time)
-	d.health = Cfg.COMBAT.reviveHealth
+	d.health = d.revive_health()
 	d.last_damage_at = time  # no instant regen: the usual 6 s wait applies
 	d.respawn_at = -1
 	by.revives += 1
@@ -1887,7 +1887,7 @@ func spawn_at(a: Actor, pos: Vector3, yaw: float, revived: bool, by) -> void:
 	_respawn(a, false, {"pos": pos, "yaw": yaw})
 	if not revived:
 		return
-	a.health = Cfg.COMBAT.reviveHealth
+	a.health = a.revive_health()
 	if player and a == player.actor:
 		hud.announce("Back in the fight!", ("%s revived you" % by.name) if by else "", 2)
 

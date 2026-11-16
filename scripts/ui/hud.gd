@@ -592,8 +592,8 @@ func update(dt: float, now: float, p: Player, actors: Array, m: Match, cam: Came
 	last_sh = a.shield
 	hp_shown += (a.health - hp_shown) * minf(1, dt * 12)
 	sh_shown += (a.shield - sh_shown) * minf(1, dt * 12)
-	hp_bar.frac = clampf(hp_shown / Cfg.COMBAT.maxHealth, 0, 1)
-	hp_bar.ghost = a.health / Cfg.COMBAT.maxHealth
+	hp_bar.frac = clampf(hp_shown / a.max_health, 0, 1)
+	hp_bar.ghost = a.health / a.max_health
 	hp_bar.text = str(ceili(a.health))
 	var low := a.health < 35
 	hp_bar.fill_a = Color("#ef4444") if low else Color("#22c55e")

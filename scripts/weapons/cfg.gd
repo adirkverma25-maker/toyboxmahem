@@ -251,6 +251,33 @@ const MOVE := {
 	"crouchEye": 0.98,
 }
 
+## Classes: what each kind of toy can carry, how tough and how fast it is.
+## Light: quick and fragile, movement tricks. Medium: tougher and slower, no Dash or Spring Hook, no grenades.
+const CLASSES := {
+	"light": {
+		"name": "Light", "health": 100.0, "speed": 1.1, "pick_abilities": true,
+		"guns": ["foamFury", "rapidRascal", "bubbleBlaster", "thunderspring", "plungerBow", "starlightZapper", "plasti9"],
+		"abilities": ["dash", "grapple", "cloak"],
+		"gadgets": ["glitchJug", "stairs", "fragGrenade", "pyroGrenade"],
+	},
+	"medium": {
+		"name": "Medium", "health": 150.0, "speed": 0.9, "pick_abilities": false,
+		"guns": ["brickbreaker", "popcornPopper", "crayonCannon", "jackBlaster", "walloper"],
+		"abilities": ["shield", "jab"],
+		"gadgets": ["turret", "healthInfuser", "breachDrill", "explosiveMine", "pyroMine"],
+	},
+}
+const CLASS_ORDER := ["light", "medium"]
+
+
+## Which class a blaster belongs to.
+static func class_of_gun(wid: String) -> String:
+	for c in CLASS_ORDER:
+		if CLASSES[c].guns.has(wid):
+			return c
+	return "light"
+
+
 const COMBAT := {
 	"maxHealth": 100.0,
 	"maxShield": 50.0,

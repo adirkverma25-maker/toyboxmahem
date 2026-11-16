@@ -149,7 +149,7 @@ func list() -> Array:
 func _can_use(it: Dictionary, a: Actor) -> bool:
 	match it.kind:
 		"health":
-			if a.health < Cfg.COMBAT.maxHealth:
+			if a.health < a.max_health:
 				return true
 			for w in a.weapons:
 				if w and not w.is_energy() and w.reserve < w.cfg.reserve * 0.5:
@@ -168,7 +168,7 @@ func _take(it: Dictionary, a: Actor, now: float) -> void:
 	var label := ""
 	match it.kind:
 		"health":
-			a.health = minf(Cfg.COMBAT.maxHealth, a.health + P.healthAmount)
+			a.health = minf(a.max_health, a.health + P.healthAmount)
 		"shield":
 			a.shield = minf(Cfg.COMBAT.maxShield, a.shield + P.shieldAmount)
 		"turbo":

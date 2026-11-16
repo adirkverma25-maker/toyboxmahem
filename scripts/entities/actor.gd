@@ -59,6 +59,10 @@ var _dash_dir := Vector3.ZERO
 var _dash_from := Vector3.ZERO
 var _half_height: float = Cfg.MOVE.standHalfHeight
 var health: float = Cfg.COMBAT.maxHealth
+## class (Cfg.CLASSES): light | medium, and what it gives
+var cls := "light"
+var max_health: float = Cfg.COMBAT.maxHealth
+var class_speed := 1.0
 var shield := 0.0
 var alive := true
 var respawn_at := 0.0
@@ -151,6 +155,21 @@ func _init(d: Dictionary, player: bool, p: Phys) -> void:
 
 func weapon() -> WeaponState:
 	return weapons[slot]
+
+
+## Become a Light or a Medium (applied at spawn): max health, move speed. Health fills up.
+func set_class(c: String) -> void:
+	if not Cfg.CLASSES.has(c):
+		c = "light"
+	cls = c
+	max_health = Cfg.CLASSES[c].health
+	class_speed = Cfg.CLASSES[c].speed
+	health = max_health
+
+
+## Health after a teammate revives you: 60% of this class's max.
+func revive_health() -> float:
+	return max_health * 0.6
 
 
 func has(ability: String) -> bool:
@@ -376,7 +395,7 @@ func spawn(at: Vector3, y: float, now: float) -> void:
 	launched = false
 	jab_t = 0
 	recent_damage = []
-	health = Cfg.COMBAT.maxHealth
+	health = max_health
 	shield = 0
 	buffs = {"turbo": 0.0, "infinite": 0.0, "power": 0.0}
 	last_damage_at = -99
@@ -484,7 +503,7 @@ func move(intent: Intent, dt: float, now: float, ev: Dictionary = {}) -> void:
 	if intent.crouch_pressed:
 		_slide_buffer_at = now
 	var slide_wanted := now - _slide_buffer_at < 0.15 and intent.crouch
-	if slide_wanted and (grounded or now - last_grounded < 0.08) and not sliding and hspeed > M.walkSpeed * 1.15 and now >= slide_ready_at:
+	if slide_wanted and (grounded or now - last_grounded < 0.08) and not sliding and hspeed > M.walkSpeed * class_speed * 1.15 and now >= slide_ready_at:
 		_slide_buffer_at = -10
 		sliding = true
 		slide_t = M.slideDuration
@@ -572,7 +591,7 @@ func move(intent: Intent, dt: float, now: float, ev: Dictionary = {}) -> void:
 		target *= 1 + (w.cfg.adsMoveMult - 1) * ads
 	if w and w.drawing() and w.cfg.has("charge"):
 		target = minf(target, M.walkSpeed) * w.cfg.charge.moveMult
-	target *= sm
+	target *= sm * class_speed  # turbo pickup x class
 
 	if grapple != null:
 		pass  # velocity already set by the hook
@@ -690,8 +709,8 @@ func move(intent: Intent, dt: float, now: float, ev: Dictionary = {}) -> void:
 func tick(dt: float, now: float) -> void:
 	if not alive:
 		return
-	if now - last_damage_at > Cfg.COMBAT.regenDelay and health < Cfg.COMBAT.maxHealth:
-		health = minf(Cfg.COMBAT.maxHealth, health + Cfg.COMBAT.regenRate * dt)
+	if now - last_damage_at > Cfg.COMBAT.regenDelay and health < max_health:
+		health = minf(max_health, health + Cfg.COMBAT.regenRate * dt)
 	fire_kick = maxf(0, fire_kick - dt * 6)
 	jab_t = maxf(0, jab_t - dt)
 	if cloaked and (now - cloak_start >= Cfg.ABILITIES.cloak.maxActive or reveal_at > cloak_start):
