@@ -233,6 +233,8 @@ func _prewarm() -> void:
 	for m in ["plastic", "wood", "fabric", "carpet", "metal", "cardboard", "glass"]:
 		impact(m, o)
 		footstep(m, o)
+	for c in ["glass", "soft", "hard"]:
+		break_piece(c, o)
 	hitmarker(false, false)
 	hitmarker(true, false)
 	hitmarker(false, true)
@@ -416,6 +418,29 @@ static func _r_impact(mat: String) -> Array:
 	return o
 
 
+## A breakable piece giving way: glass shatters, wood/cardboard cracks, walls crumble.
+static func _r_break(cls: String) -> Array:
+	var o := []
+	var p := U.rand(0.9, 1.1)
+	match cls:
+		"glass":
+			o.append(_N("white", "highpass", 3500 * p, 0.7, 0, _E(0.001, 0.12, 0.9)))
+			for i in 7:
+				var f := U.rand(2600, 7800) * p
+				o.append(_T("sine", f, f * 0.99, U.rand(0.0, 0.25), 0.2, _E(0.001, U.rand(0.08, 0.2), 0.12)))
+		"soft":
+			o.append(_C(0, 2200 * p, 0.9, 0.015))
+			o.append(_N("pink", "bandpass", 700 * p, 1.2, 0, _E(0.001, 0.18, 0.9)))
+			o.append(_T("sine", 220 * p, 90, 0, 0.18, _E(0.002, 0.16, 0.7)))
+			o.append(_N("pink", "bandpass", 1600 * p, 2, 0.05, _E(0.001, 0.08, 0.4)))
+		"hard":
+			o.append(_T("sine", 75 * p, 38, 0, 0.45, _E(0.003, 0.4, 1.0)))
+			o.append(_N("brown", "lowpass", 900 * p, 0.8, 0, _E(0.004, 0.5, 1.0), 200))
+			for i in 6:
+				o.append(_N("pink", "bandpass", U.rand(800, 2400), 3, U.rand(0.05, 0.45), _E(0.001, 0.05, 0.35)))
+	return o
+
+
 static func _r_footstep(mat: String) -> Array:
 	var o := []
 	var p := U.rand(0.85, 1.15)
@@ -570,6 +595,10 @@ func weapon_switch() -> void:
 
 
 # ------------------------------------------------------------------ impacts & bodies
+func break_piece(cls: String, pos: Vector3) -> void:
+	_play("break:" + cls, func(): return _r_break(cls), 0.9 if cls == "hard" else 0.7, pos, "SFX", 6)
+
+
 func impact(mat: String, pos: Vector3, vol := 1.0) -> void:
 	_play("impact:" + mat, func(): return _r_impact(mat), 0.5 * vol, pos, "SFX", 3)
 

@@ -121,6 +121,39 @@ func break_piece(id: int, impulse_dir: Vector3) -> void:
 		on_break.call(id)
 
 
+## Hook up break/hit effects: debris chunks, dust, chips, crack marks and sounds (fx / audio may be null).
+func fx_hooks(debris: Debris, fx: Effects, audio: AudioEngine) -> void:
+	on_break_fx = func(id: int, dir: Vector3) -> void:
+		var p: Dictionary = pieces[id]
+		var c := _color_of(p.mat)
+		var center: Vector3 = (p.mn + p.mx) / 2
+		if debris:
+			debris.burst(p.mn, p.mx, c, p.cls, dir)
+		if fx:
+			var ext: Vector3 = p.mx - p.mn
+			for i in (4 if p.cls == "glass" else 9):
+				var at := Vector3(U.rand(p.mn.x, p.mx.x), U.rand(p.mn.y, p.mx.y), U.rand(p.mn.z, p.mx.z))
+				fx.soft.emit(at, Vector3(U.rand(-1, 1), U.rand(0.2, 1.4), U.rand(-1, 1)), c.lerp(Color("#d8cfc2"), 0.6),
+					U.rand(0.6, 1.2) * clampf(ext.length() / 2.5, 0.6, 1.6), U.rand(0.6, 1.2), {"grow": 2.2, "drag": 2.5, "alpha": 0.6})
+		if audio:
+			audio.break_piece(p.cls, center)
+	on_hit_fx = func(id: int, point: Vector3, normal: Vector3, cracked_now: bool) -> void:
+		if fx == null:
+			return
+		var p: Dictionary = pieces[id]
+		fx.impact(point, normal, p.surf if p.surf != "" else "plastic", {"decal": p.cls != "glass"})
+		if cracked_now:
+			for i in 3:
+				var off := Vector3(U.rand(-0.5, 0.5), U.rand(-0.6, 0.6), U.rand(-0.5, 0.5))
+				fx.impacts.add((point + off).clamp(p.mn, p.mx), normal, U.rand(0.35, 0.6), "#1d1a17", 30, 0.7)
+
+
+static func _color_of(mat: Material) -> Color:
+	if mat is BaseMaterial3D:
+		return (mat as BaseMaterial3D).albedo_color
+	return Color(0.8, 0.8, 0.8)
+
+
 func broken_ids() -> PackedInt32Array:
 	var out := PackedInt32Array()
 	for p in pieces:

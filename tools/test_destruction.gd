@@ -83,3 +83,28 @@ func _run() -> void:
 	await phys.refresh()
 	check(plain == -1 and real == 0 and d2.pieces.size() == 1, "builder_breakable_box_routes")
 	check(_ray_hits(Vector3(0.5, 0.5, -2), Vector3(0.5, 0.5, 2)), "builder_fallback_is_solid")
+
+	# Debris: pooled chunks, never more than MAX alive, oldest recycled
+	var deb := Debris.new()
+	add_child(deb)
+	for i in 20:
+		deb.burst(Vector3(i, 0, 0), Vector3(i + 1, 2, 0.4), Color.WHITE, "soft", Vector3.FORWARD)
+	check(deb.live_count() == Debris.MAX and Debris.MAX == 80, "debris_caps_at_80")
+	check(deb.mm.visible_instance_count == Debris.MAX, "debris_visible_count_tracks_live")
+	deb.clear()
+	check(deb.live_count() == 0 and deb.mm.visible_instance_count == 0, "debris_clear")
+
+	# breaking a piece throws debris once the effects are hooked up
+	var d3 := await _fresh()
+	var wall := d3.add_piece(Vector3(0, 0, 0), Vector3(2, 3, 0.4), mat, "hard", "w", "wood")
+	d3.build()
+	d3.fx_hooks(deb, null, null)
+	d3.break_piece(wall, Vector3.BACK)
+	check(deb.live_count() >= 4, "break_throws_debris")
+	deb.clear()
+
+	# break sounds exist for every class
+	var ok := true
+	for c in Destruction.CLASSES:
+		ok = ok and not AudioEngine._r_break(c).is_empty()
+	check(ok, "break_sound_recipes")
