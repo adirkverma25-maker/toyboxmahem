@@ -16,6 +16,9 @@ var nav: NavGraph
 var fx: Effects
 var events := Emitter.new()
 var combat: Combat
+## breakable walls / cover and the chunks they leave
+var destruction: Destruction
+var debris: Debris
 var pickups: Pickups
 var match_: Match
 var hud: HUD
@@ -101,7 +104,12 @@ func _init_game() -> void:
 	var arena_root := Node3D.new()
 	arena_root.name = "Arena"
 	r.world.add_child(arena_root)
+	destruction = Destruction.new(phys)
+	r.world.add_child(destruction)
+	phys.set_meta("destruction", destruction)
 	arena = map.build.call(arena_root, phys)
+	phys.remove_meta("destruction")
+	destruction.build()
 	r.set_sky(map.sky)
 	r.sun = arena.sun
 	r.point_lights = arena.point_lights
@@ -138,6 +146,10 @@ func _init_game() -> void:
 		push_warning("[nav] only %d/%d jump pads + ziplines linked" % [links, map.pads.size() + map.zips.size()])
 	combat = Combat.new(phys, fx, audio, events, func(): return actors, arena.loose_bricks)
 	r.world.add_child(combat)
+	combat.destruction = destruction
+	debris = Debris.new()
+	r.world.add_child(debris)
+	destruction.fx_hooks(debris, fx, audio)
 	pickups = Pickups.new(spots, fx, audio, events)
 	r.world.add_child(pickups)
 	match_ = Match.new(phys, spawn_points)
@@ -675,6 +687,8 @@ func _clear_match() -> void:
 	dash_from.clear()
 	combat.clear()
 	fx.clear()
+	destruction.reset()
+	debris.clear()
 	ambient.clear_blocks()
 	pickups.reset()
 	hud.reset()

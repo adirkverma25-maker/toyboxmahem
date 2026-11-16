@@ -103,6 +103,20 @@ func _run() -> void:
 	check(deb.live_count() >= 4, "break_throws_debris")
 	deb.clear()
 
+	# blasts: falloff with distance, and a standing piece shields the ones behind it
+	var d4 := await _fresh()
+	var near_p := d4.add_piece(Vector3(1, 0, -1), Vector3(1.4, 2, 1), mat, "soft", "a", "wood")
+	var far_p := d4.add_piece(Vector3(2.5, 0, -1), Vector3(2.9, 2, 1), mat, "soft", "a", "wood")
+	var side_p := d4.add_piece(Vector3(-1, 0, 2.6), Vector3(1, 2, 3.0), mat, "soft", "a", "wood")
+	var edge_p := d4.add_piece(Vector3(-4.2, 0, -1), Vector3(-3.8, 2, 1), mat, "soft", "a", "wood")
+	d4.build()
+	await phys.refresh()
+	d4.blast(Vector3(0, 1, 0), 4.5, 40.0)
+	check(d4.pieces[near_p].hp < 220.0 and d4.pieces[far_p].hp == 220.0, "blast_is_blocked_by_nearer_piece")
+	var lost_side: float = 220.0 - d4.pieces[side_p].hp
+	var lost_edge: float = 220.0 - d4.pieces[edge_p].hp
+	check(lost_side > lost_edge and lost_edge > 0, "blast_falloff")
+
 	# break sounds exist for every class
 	var ok := true
 	for c in Destruction.CLASSES:

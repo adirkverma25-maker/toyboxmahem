@@ -17,6 +17,8 @@ var bricks
 var now := 0.0
 var reduced_motion := false
 var barriers: Barriers
+## breakable walls and cover (null on maps built without it)
+var destruction: Destruction
 var _projectiles: Array = []
 var _mm := {}  # visual -> MultiMesh
 var _buf := {}  # visual -> PackedFloat32Array
@@ -325,6 +327,16 @@ func _hitscan(shooter: Actor, cfg: Dictionary, origin: Vector3, d: Vector3, muzz
 			_kick(target, flat.x * k, 0, flat.z * k, 3)
 	elif not world.is_empty():
 		_world_impact(world, cfg, d)
+		_hit_piece(world, cfg.damage * _falloff(cfg, world.dist) * power)
+
+
+## A shot, dart or punch hit a breakable piece.
+func _hit_piece(world: Dictionary, dmg: float) -> void:
+	if destruction == null or world.is_empty():
+		return
+	var id := destruction.piece_of(world.collider)
+	if id >= 0:
+		destruction.damage(id, dmg, "bullet", world.point, world.normal)
 
 
 func _hit_barrier(b: Dictionary, point: Vector3, dmg: float) -> void:
@@ -477,6 +489,8 @@ func update(dt: float) -> void:
 					fx.impact(world.point, world.normal, world.mat, {"decal": false})
 				else:
 					_world_impact(world, cfg, d)
+				if not cfg.has("explosion"):
+					_hit_piece(world, cfg.damage * p.power)
 				if world.dynamic_body and not cfg.has("explosion"):
 					var rb: RigidBody3D = world.dynamic_body
 					rb.apply_impulse(Vector3(d.x * 0.4, 0.2, d.z * 0.4), world.point - rb.global_position)
@@ -538,6 +552,8 @@ func explode(point: Vector3, normal: Vector3, p: Dictionary, direct) -> void:
 	audio.explosion(center)
 	if bricks:
 		bricks.blast(center, ex.radius, 3.2)
+	if destruction:
+		destruction.blast(center, ex.radius, ex.maxDamage * p.power)
 	var shooter: Actor = p.shooter
 	for a in actors.call():
 		if not a.alive or a == direct:
@@ -614,6 +630,8 @@ func jab(attacker: Actor) -> Actor:
 		var wall := barriers.trace(eye, fwd, J.range, attacker)
 		if not wall.is_empty():
 			_hit_barrier(wall.b, eye + fwd * wall.t, J.damage)
+		else:
+			_hit_piece(phys.raycast(eye, fwd, J.range), J.damage)
 		return null
 	var point := best.chest_pos()
 	var push := Vector3(point.x - attacker.pos.x, 0, point.z - attacker.pos.z).normalized()

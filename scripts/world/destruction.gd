@@ -185,6 +185,31 @@ func reset() -> void:
 		_rebuild(g)
 
 
+## An explosion: every standing piece in range takes max_damage with the same falloff as toys get, unless
+## something solid (another piece, a static wall) is between the blast and its nearest point.
+## Returns the ids that were hit.
+func blast(center: Vector3, radius: float, max_damage: float) -> Array[int]:
+	var hit: Array[int] = []
+	var hits := []
+	for id in pieces_in_sphere(center, radius):
+		var cp := closest_point(id, center)
+		var dist := cp.distance_to(center)
+		if dist > 0.05:
+			var dir := (cp - center) / dist
+			var h := phys.raycast(center, dir, dist + 0.05)
+			if not h.is_empty() and piece_of(h.collider) != id and h.dist < dist - 0.05:
+				continue
+		var f := maxf(0.0, 1.0 - maxf(0.0, dist - 0.4) / radius)
+		if f <= 0:
+			continue
+		hits.append([id, max_damage * f, cp, (cp - center).normalized() if dist > 0.05 else Vector3.UP])
+	# apply after the sight checks so pieces broken by this blast still shield the ones behind them
+	for e in hits:
+		damage(e[0], e[1], "blast", e[2], -e[3])
+		hit.append(e[0])
+	return hit
+
+
 ## Standing pieces whose box comes within r of center.
 func pieces_in_sphere(center: Vector3, r: float) -> Array[int]:
 	var out: Array[int] = []
