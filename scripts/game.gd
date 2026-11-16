@@ -6,7 +6,7 @@ const LoadingScreen := preload("res://scripts/ui/loading.gd")
 
 static var _switch_done := false  # dev test: survives the scene reload
 var state := "menu"
-var training_weapons := ["", ""]  # Training: blasters picked from the pause menu (this session only)  # menu | playing | paused | results
+var training_gun := ""  # Training: blaster picked from the pause menu (this session only; its class comes with it)  # menu | playing | paused | results
 var r := Renderer.new()
 var phys: Phys
 var arena: Dictionary
@@ -759,7 +759,7 @@ func start_match(d: String, m := mode, seats = null, local_seat := 0) -> void:
 	match_seconds = 0
 	var world := _world_dict()
 	var training: bool = def.get("training", false)
-	training_weapons = ["", ""]
+	training_gun = ""
 	menus.training_mode = training
 	if seats == null:
 		var me := _make_player()
@@ -798,6 +798,7 @@ func start_match(d: String, m := mode, seats = null, local_seat := 0) -> void:
 				a.model.set_team(Modes.TEAMS[a.team].color)
 	var pa: Actor = player.actor
 	_refresh_outlines()
+	_assign_bot_classes(training)
 	# spawn everyone
 	match_.reset(time)
 	match_.shelf_spawns = shelf_spawns
@@ -915,7 +916,7 @@ func _make_bot(id: String, shelf: bool, world: Dictionary, training: bool) -> Ac
 	a.model = rig
 	r.world.add_child(rig)
 	var bot := Bot.new(a, Bot.PERSONALITIES[id], world)
-	a.abilities = [] if training else Bot.pick_bot_abilities(bot.personality)
+	a.abilities = []  # set with the class (see _assign_bot_classes)
 	bot.passive = training
 	actors.append(a)
 	bots.append(bot)
@@ -1008,6 +1009,42 @@ func _refresh_outlines() -> void:
 			a.model.set_outline(Settings.get_v("enemyOutlines"), "#ff2d55")
 
 
+## Which class a toy (re)spawns as: yours from the loadout (or the Training blaster's class), a bot's own,
+## a remote toy's from its game.
+func _class_for(a: Actor) -> String:
+	var remote = remotes.get(a)
+	if remote != null:
+		return str(remote.get("cls", "light"))
+	if a.is_player:
+		return Cfg.class_of_gun(training_gun) if training_gun != "" else Loadout.cls()
+	var bot = bot_by_actor.get(a)
+	return bot.cls if bot else "light"
+
+
+## Give every bot a class: an even mix on each team (FFA: across everyone); Training dummies are Mediums.
+## Each bot's personality is nudged toward its class.
+func _assign_bot_classes(training: bool) -> void:
+	var teams := []
+	for b in bots:
+		teams.append(b.actor.team)
+	var classes := assign_bot_classes(teams)
+	for i in bots.size():
+		var b: Bot = bots[i]
+		b.set_class("medium" if training else classes[i])
+
+
+## One class per bot (given each bot's team, -1 = no teams), alternating within each team from a random start.
+static func assign_bot_classes(teams: Array) -> Array:
+	var out := []
+	var next := {}
+	for t in teams:
+		if not next.has(t):
+			next[t] = randi() % 2
+		out.append(Cfg.CLASS_ORDER[next[t] % 2])
+		next[t] += 1
+	return out
+
+
 ## (Re)spawn a toy. `at` = {pos, yaw} where the host said (guests); otherwise the match rules pick a spot.
 func _respawn(a: Actor, initial := false, at = null) -> void:
 	var pos: Vector3
@@ -1020,8 +1057,10 @@ func _respawn(a: Actor, initial := false, at = null) -> void:
 		var sp := match_.pick_spawn(a, actors, pool)
 		pos = sp.pos
 		yaw = sp.yaw
+	a.set_class(_class_for(a))
 	a.spawn(pos, yaw, time)
 	a.slot = 0
+	a.weapons[1] = null  # one blaster per loadout
 	var remote = remotes.get(a)
 	if remote != null:
 		# moved by another game: no collider here, weapons come with its state
@@ -1033,17 +1072,15 @@ func _respawn(a: Actor, initial := false, at = null) -> void:
 		a.model.scale_in = 0.01
 	elif a.is_player:
 		# your loadout from the menu (changes made mid-match apply here, on the next respawn)
-		for s in 2:
-			var wid: String = training_weapons[s] if training_weapons[s] != "" else (Loadout.primary() if s == 0 else Loadout.secondary())
-			a.give_weapon(wid, s, Loadout.scope(wid))
-		a.abilities = Loadout.abilities()
+		var wid: String = training_gun if training_gun != "" else Loadout.gun()
+		a.give_weapon(wid, 0, Loadout.scope(wid))
+		a.abilities = Loadout.abilities(a.cls)
 		player.on_spawn()
 		a.weapon().equip(time, 0.3)
 	else:
 		var bot: Bot = bot_by_actor[a]
-		var lo := Bot.pick_bot_loadout(bot.personality)
-		a.give_weapon(lo[0], 0)
-		a.give_weapon(lo[1], 1)
+		a.give_weapon(Bot.pick_bot_loadout(bot.personality, bot.cls), 0)
+		a.abilities = [] if bot.passive else Bot.pick_bot_abilities(bot.personality, bot.cls)
 		bot.on_spawn(time)
 		a.model.visible = true
 		a.model.scale_in = 0.01
@@ -1178,9 +1215,11 @@ func resume() -> void:
 ## Training: swap the blaster in your current slot for any blaster (locked ones too, for this session).
 func training_try(wid: String) -> void:
 	var pa := player.actor
-	training_weapons[pa.slot] = wid
+	training_gun = wid
 	if pa.alive:
-		pa.give_weapon(wid, pa.slot, Loadout.scope(wid))
+		# the blaster now; its class (health, speed, abilities) from the next respawn
+		pa.give_weapon(wid, 0, Loadout.scope(wid))
+		pa.slot = 0
 		player.equip_current(true)
 		pa.weapon().equip(time, 0.3)
 
@@ -1877,7 +1916,7 @@ func remote_ability(a: Actor, ab: Dictionary) -> void:
 	if str(ab.get("id", "")) != "shield":
 		return
 	if not a.has("shield"):
-		a.abilities = ["shield", a.abilities[1] if a.abilities.size() > 1 else "dash"]
+		a.abilities = Cfg.CLASSES.medium.abilities.duplicate()  # only Mediums carry the Mesh Shield
 	a.shield_ready_at = 0
 	Abilities.try_shield(a, time, {"combat": combat, "phys": phys, "audio": audio}, float(ab.get("yaw", a.yaw)))
 
@@ -1943,6 +1982,8 @@ func _online_test(role_arg: String, m: String, secs: float, shots: String) -> vo
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--room="):
 			code = a.trim_prefix("--room=")
+		elif a.begins_with("--class="):
+			Loadout.set_cls(a.trim_prefix("--class="))
 	if m == "training":
 		m = "ffa"
 	await get_tree().create_timer(0.5).timeout
@@ -2059,6 +2100,9 @@ func _online_test(role_arg: String, m: String, secs: float, shots: String) -> vo
 		obj += "%s:%d " % [sec.def.name.substr(0, 6), sec.owner]
 	print("[online] %s: team scores %s %s" % [role, str(match_.team_scores.map(func(x): return snappedf(x, 0.1))), obj])
 	print("[online] %s: broken %s" % [role, str(Array(destruction.broken_ids()))])
+	for o in actors:
+		if o.is_player or remotes.has(o):
+			print("[online] %s: %s class %s max %.0f" % [role, o.name, o.cls, o.max_health])
 	print("[online] %s: cracked %s" % [role, str(Array(destruction.cracked_ids()))])
 	if host:
 		print("[online] host: applied %d guest states, %d hit claims, %d replayed shots" % [host.stats.states, host.stats.claims, host.stats.shots])

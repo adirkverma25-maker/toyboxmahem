@@ -198,6 +198,13 @@ func _on_guest_msg(m: Dictionary, from: String) -> void:
 				stats.states += 1
 				r.state = s
 				r.revive_held = bool(s.get("revive", false))
+				# the guest's class: kept for its next spawns, and applied to this life on its first state
+				var c := str(s.get("cls", "light"))
+				r.cls = c if Cfg.CLASSES.has(c) else "light"
+				if int(r.cls_life) != int(r.life) and a.alive:
+					r.cls_life = r.life
+					if a.cls != r.cls:
+						a.set_class(r.cls)
 		"ghit":
 			var c: Dictionary = m.c
 			var ti := int(c.target)

@@ -11,7 +11,7 @@
 //
 // Clients connect to /ws?room=<CODE> and then send {t:"hello", v, name, room, role}.
 
-const PROTOCOL_VERSION = 101;
+const PROTOCOL_VERSION = 102;
 const MAX_HUMANS = 8;
 const IDLE_KICK_MS = 30_000;
 

@@ -31,7 +31,9 @@ const DIFFICULTY := {
 
 
 ## Each bot brings two of the five abilities, leaning on its personality.
-static func pick_bot_abilities(p: Dictionary) -> Array:
+static func pick_bot_abilities(p: Dictionary, cls := "light") -> Array:
+	if not Cfg.CLASSES[cls].pick_abilities:
+		return Cfg.CLASSES[cls].abilities.slice(0, 2)
 	var w := {
 		"dash": 0.4 + p.dashUse,
 		"jab": 0.2 + p.aggression * 0.9,
@@ -41,7 +43,7 @@ static func pick_bot_abilities(p: Dictionary) -> Array:
 	}
 	var out := []
 	for n in 2:
-		var left := Cfg.ABILITY_ORDER.filter(func(id): return not out.has(id))
+		var left := (Cfg.CLASSES[cls].abilities as Array).filter(func(id): return not out.has(id))
 		var total := 0.0
 		for id in left:
 			total += w[id]
@@ -57,12 +59,17 @@ static func pick_bot_abilities(p: Dictionary) -> Array:
 
 
 ## Bots bring one of their favorite weapons plus the pistol.
-static func pick_bot_loadout(p: Dictionary) -> Array:
-	return [U.pick(p.favorite), "plasti9"]
+## The bot's blaster: a favourite its class can carry, else any blaster of its class.
+static func pick_bot_loadout(p: Dictionary, cls: String) -> String:
+	var guns: Array = Cfg.CLASSES[cls].guns
+	var fav: Array = p.favorite.filter(func(g): return guns.has(g))
+	return U.pick(fav) if fav.size() else U.pick(guns)
 
 
 var actor: Actor
 var personality: Dictionary
+## light | medium (game.gd assigns it before the first spawn)
+var cls := "light"
 var w: Dictionary
 var intent := Actor.Intent.new()
 var state := "patrol"
@@ -296,7 +303,9 @@ func _perceive(now: float) -> void:
 		_no_los_since = now
 	else:
 		_target_visible = false
-		if target and (not target.alive or now - _target_seen_at > 5):
+		# Lights hunt: a hurt target is chased much longer before it's forgotten
+		var keep_s := 12.0 if cls == "light" and target and target.health < target.max_health * 0.5 else 5.0
+		if target and (not target.alive or now - _target_seen_at > keep_s):
 			target = null
 
 
@@ -315,11 +324,14 @@ func _think(now: float) -> void:
 	var p := personality
 	_perceive(now)
 	var ws := a.weapon()
-	var hp_frac := (a.health + a.shield) / 100.0
+	var hp_frac := (a.health + a.shield) / a.max_health
 	# wary: run once health starts dropping (earlier for careful toys), or after a sudden burst of damage
 	var retreat_at: float = 0.35 + p.caution * 0.3
 	var burst := a.damage_in_last(3, now)
-	var scared := hp_frac < retreat_at or (burst > 35 and a.health < 75)
+	var scared := hp_frac < retreat_at or (burst > 35 and a.health < a.max_health * 0.75)
+	# Mediums play it safe: back to cover below 40% health
+	if cls == "medium" and a.health < a.max_health * 0.4:
+		scared = true
 	# weapon choice by distance
 	if target and _target_visible:
 		_choose_weapon(target.pos.distance_to(a.pos), now)
@@ -585,6 +597,19 @@ func _switch_slot(s: int, now: float) -> void:
 	a.slot = s
 	a.weapon().equip(now, 0.4)
 	set_model_weapon()
+
+
+## Take a class: Lights get bolder, Mediums more careful (on a copy of this bot's personality).
+func set_class(c: String) -> void:
+	cls = c if Cfg.CLASSES.has(c) else "light"
+	var p := personality.duplicate()
+	if cls == "light":
+		p.aggression = clampf(p.aggression + 0.25, 0, 1)
+		p.caution = clampf(p.caution - 0.25, 0, 1)
+	else:
+		p.caution = clampf(p.caution + 0.25, 0, 1)
+		p.aggression = clampf(p.aggression - 0.2, 0, 1)
+	personality = p
 
 
 # ------------------------------------------------------------------ navigation
@@ -909,6 +934,10 @@ func update(dt: float, now: float) -> void:
 				var lo: float = br[0]
 				var hi: float = br[1]
 				var ideal: float = lo + (hi - lo) * (0.55 - p.aggression * 0.4)
+				if cls == "medium":
+					ideal = clampf(ideal, minf(10.0, hi), 22.0)  # fight from mid range
+				else:
+					ideal *= 0.8  # Lights crowd their target
 				var to_t := Vector3(tgt.pos.x - a.pos.x, 0, tgt.pos.z - a.pos.z).normalized()
 				var side := Vector3(-to_t.z, 0, to_t.x) * _strafe_dir
 				if now > _strafe_change_at:

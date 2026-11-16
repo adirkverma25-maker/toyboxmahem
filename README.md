@@ -34,6 +34,15 @@ Up to 8 players per room. Everyone needs the same version of the game.
 
 Walls, cover and glass can be shot and blown apart: blast your own way into a building.
 
+## Classes
+
+Pick a class in **Loadout**:
+
+- **Light:** 100 health and faster. Blasters: Foam Fury, Rapid Rascal, Bubble Blaster, Thunderspring, Plunger Longbow, Starlight Zapper, Plasti-9. Pick two abilities from Wind-Up Dash, Spring Hook and Cloak.
+- **Medium:** 150 health but slower. Blasters: Brickbreaker, Popcorn Popper, Crayon Cannon, Jack-in-the-Blaster, Walloper. Always has the Mesh Shield and Spring Punch.
+
+Each class has its own gadgets too; they arrive in the next update.
+
 - **Free-for-All:** everyone for themselves. First to 30 pops wins.
 - **Team Deathmatch:** 4 v 4, first team to 50.
 - **Toy Box Takeover:** hold the moving toy box to wind up your team's key.

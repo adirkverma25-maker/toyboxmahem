@@ -27,6 +27,9 @@ var current := ""
 var back := "main"
 var difficulty := "normal"
 var selected_weapon := "plasti9"
+## names for the gadgets (the gadget update adds them to the game)
+const GADGET_NAMES := {"glitchJug": "Glitch Jug", "stairs": "Pop-up Stairs", "fragGrenade": "Frag Grenade", "pyroGrenade": "Pyro Grenade",
+	"turret": "Turret", "healthInfuser": "Health Infuser", "breachDrill": "Breach Drill", "explosiveMine": "Explosive Mine", "pyroMine": "Pyro Mine"}
 var mode := "ffa"
 var map_id := "bedroom"
 var abil_slot := 0
@@ -327,11 +330,11 @@ class Burst extends Control:
 
 
 func _loadout_bb() -> String:
-	var p := Loadout.primary()
-	var s := Loadout.secondary()
+	var c := Loadout.cls()
+	var g := Loadout.gun()
 	var ab := Loadout.abilities()
-	return "[font_size=13][color=#fff8ecbf]Primary[/color][/font_size] %s [font_size=13][color=#fff8ecbf]%s[/color][/font_size]     [font_size=13][color=#fff8ecbf]Secondary[/color][/font_size] %s [font_size=13][color=#fff8ecbf]%s[/color][/font_size]     [font_size=13][color=#fff8ecbf]Abilities[/color][/font_size] %s" % [
-		UI.d(Cfg.WEAPONS[p].name, 17), Cfg.SCOPES[Loadout.scope(p)].name, UI.d(Cfg.WEAPONS[s].name, 17), Cfg.SCOPES[Loadout.scope(s)].name,
+	return "[font_size=13][color=#fff8ecbf]Class[/color][/font_size] %s     [font_size=13][color=#fff8ecbf]Blaster[/color][/font_size] %s [font_size=13][color=#fff8ecbf]%s[/color][/font_size]     [font_size=13][color=#fff8ecbf]Abilities[/color][/font_size] %s" % [
+		UI.d(Cfg.CLASSES[c].name, 17), UI.d(Cfg.WEAPONS[g].name, 17), Cfg.SCOPES[Loadout.scope(g)].name,
 		UI.d(ABILITY_INFO[ab[0]].short + " + " + ABILITY_INFO[ab[1]].short, 17)]
 
 
@@ -607,48 +610,74 @@ func collection(back_to: String) -> void:
 	wallet.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	tr.add_child(wallet)
 	v.add_child(tr)
-	v.add_child(UI.para("Pick two abilities, then the two blasters you spawn with and a scope for each." + (" Changes apply the next time you respawn." if back_to == "pause" else "")))
-	# abilities: pick 2 of 5
+	v.add_child(UI.para("Pick a class, then its blaster, scope and abilities." + (" Changes apply the next time you respawn." if back_to == "pause" else "")))
+	# class
+	var cls := Loadout.cls()
+	var crow := UI.grid(2, 10, 10)
+	for c in Cfg.CLASS_ORDER:
+		var cd: Dictionary = Cfg.CLASSES[c]
+		var sub := "%d health, %s" % [cd.health, "faster, Dash / Spring Hook / Cloak" if c == "light" else "slower and tougher, Mesh Shield + Spring Punch"]
+		crow.add_child(UI.choice(cd.name.to_upper(), sub, c == cls, func():
+			Loadout.set_cls(c)
+			selected_weapon = Loadout.gun()
+			abil_slot = 0
+			collection(back_to), "CLASS", 22))
+	v.add_child(crow)
+	if not Cfg.CLASSES[cls].guns.has(selected_weapon):
+		selected_weapon = Loadout.gun()
+	# abilities: Lights pick 2 of 3, Mediums always have both of theirs
 	var ab := Loadout.abilities()
-	v.add_child(UI.rich("[font_size=12][color=#fff8ecd9]ABILITIES[/color][/font_size]  [font_size=13][color=#fff8eccc]pick 2 of 5: choose a slot, then an ability[/color][/font_size]", 12))
+	var picks: bool = Cfg.CLASSES[cls].pick_abilities
+	v.add_child(UI.rich("[font_size=12][color=#fff8ecd9]ABILITIES[/color][/font_size]  [font_size=13][color=#fff8eccc]%s[/color][/font_size]" % ("pick 2 of 3: choose a slot, then an ability" if picks else "Mediums always carry these two"), 12))
 	var slots := UI.grid(2, 10, 10)
 	for i in 2:
 		var key := GInput.action_name("ability2" if i else "ability1")
-		var b := UI.choice(Cfg.ABILITIES[ab[i]].name, "", abil_slot == i, func():
-			abil_slot = i
-			collection(back_to), "ABILITY %d   [%s]" % [i + 1, key], 19)
+		var b := UI.choice(Cfg.ABILITIES[ab[i]].name, "" if picks else ABILITY_INFO[ab[i]].desc, picks and abil_slot == i, func():
+			if picks:
+				abil_slot = i
+				collection(back_to), "ABILITY %d   [%s]" % [i + 1, key], 19)
 		slots.add_child(b)
 	v.add_child(slots)
-	var chips := UI.grid(5, 8, 8)
-	for id in Cfg.ABILITY_ORDER:
-		var on := ab.find(id)
-		chips.add_child(UI.choice(Cfg.ABILITIES[id].name + ("  (%d)" % (on + 1) if on >= 0 else ""), ABILITY_INFO[id].desc, on >= 0, func():
-			if Loadout.abilities()[abil_slot] == id:
-				return
-			Loadout.set_ability(abil_slot, id)
-			# the next pick fills the other slot, so two clicks set both
-			abil_slot = 0 if abil_slot else 1
-			collection(back_to), "", 15, 12))
-	v.add_child(chips)
-	# equipped weapon cards
+	if picks:
+		var chips := UI.grid(3, 8, 8)
+		for id in Cfg.CLASSES[cls].abilities:
+			var on := ab.find(id)
+			chips.add_child(UI.choice(Cfg.ABILITIES[id].name + ("  (%d)" % (on + 1) if on >= 0 else ""), ABILITY_INFO[id].desc, on >= 0, func():
+				if Loadout.abilities()[abil_slot] == id:
+					return
+				Loadout.set_ability(abil_slot, id)
+				# the next pick fills the other slot, so two clicks set both
+				abil_slot = 0 if abil_slot else 1
+				collection(back_to), "", 15, 12))
+		v.add_child(chips)
+	# equipped blaster + gadget
 	var eq := UI.grid(2, 10, 10)
-	for pair in [["PRIMARY", Loadout.primary()], ["SECONDARY", Loadout.secondary()]]:
-		var w: Dictionary = Cfg.WEAPONS[pair[1]]
-		var c := _wcolor(pair[1])
-		var card := UI.panel(UI.sb(Color(0, 0, 0, 0.22), 14, 3, U.col(c), Vector4(12, 8, 12, 8)))
-		var cv := UI.vbox(0)
-		cv.add_child(UI.label(pair[0], UI.BODY, 12, Color(UI.PAPER, 0.75)))
-		cv.add_child(UI.label(w.name, UI.DISPLAY, 19))
-		cv.add_child(UI.label(Cfg.SCOPES[Loadout.scope(pair[1])].name, UI.BODY, 13, Color(UI.PAPER, 0.85)))
-		card.add_child(cv)
-		card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		eq.add_child(card)
+	var gid := Loadout.gun()
+	var gcard := UI.panel(UI.sb(Color(0, 0, 0, 0.22), 14, 3, U.col(_wcolor(gid)), Vector4(12, 8, 12, 8)))
+	var gv := UI.vbox(0)
+	gv.add_child(UI.label("BLASTER", UI.BODY, 12, Color(UI.PAPER, 0.75)))
+	gv.add_child(UI.label(Cfg.WEAPONS[gid].name, UI.DISPLAY, 19))
+	gv.add_child(UI.label(Cfg.SCOPES[Loadout.scope(gid)].name, UI.BODY, 13, Color(UI.PAPER, 0.85)))
+	gcard.add_child(gv)
+	gcard.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	eq.add_child(gcard)
+	var dcard := UI.panel(UI.sb(Color(0, 0, 0, 0.22), 14, 3, Color(1, 1, 1, 0.25), Vector4(12, 8, 12, 8)))
+	var dv := UI.vbox(0)
+	dv.add_child(UI.label("GADGET  -  COMING SOON", UI.BODY, 12, Color(UI.PAPER, 0.75)))
+	var gnames := []
+	for g in Cfg.CLASSES[cls].gadgets:
+		gnames.append(GADGET_NAMES.get(g, g))
+	dv.add_child(UI.label(", ".join(gnames), UI.BODY, 14, Color(UI.PAPER, 0.5)))
+	dcard.add_child(dv)
+	dcard.modulate.a = 0.7
+	dcard.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	eq.add_child(dcard)
 	v.add_child(eq)
-	# weapon list + viewer
+	# weapon list (this class's blasters) + viewer
 	var colls := UI.hbox(18)
 	var wl := UI.vbox(6)
 	wl.custom_minimum_size.x = 220
-	for id in Cfg.WEAPON_ORDER:
+	for id in Cfg.CLASSES[cls].guns:
 		var owned: bool = Progress.owns(id)
 		var chosen: bool = id == selected_weapon
 		var bst := UI.sb(Color(1, 1, 1, 0.18) if chosen else Color(1, 1, 1, 0.07), 14, 0, Color.TRANSPARENT, Vector4(12, 9, 12, 6))
@@ -841,14 +870,12 @@ func _weapon_info(vv: VBoxContainer, back_to: String) -> void:
 	vv.add_child(UI.para("%s Zoom %sx." % [sd.blurb, zs], 13.5, 0.9))
 	if owned:
 		var row := UI.hbox(8)
-		for slot in [0, 1]:
-			var is_eq := (Loadout.primary() if slot == 0 else Loadout.secondary()) == id
-			var nm := ("Equipped as " if is_eq else "Equip as ") + ("primary" if slot == 0 else "secondary")
-			var b := UI.btn(nm, "primary" if is_eq else "", true, func():
-				Loadout.set_weapon(slot, id)
-				collection(back_to))
-			b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			row.add_child(b)
+		var is_eq := Loadout.gun() == id
+		var b := UI.btn("Equipped" if is_eq else "Equip", "primary" if is_eq else "", true, func():
+			Loadout.set_gun(id)
+			collection(back_to))
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(b)
 		vv.add_child(row)
 	else:
 		var row := UI.hbox(8)
@@ -1132,14 +1159,14 @@ func try_blaster() -> void:
 	back = "pause"
 	var v := _screen(900)
 	v.add_child(UI.title("Try a blaster"))
-	v.add_child(UI.para("Swaps the blaster in your hand for this training session. Locked blasters work here too; buying them is still done in Loadout."))
+	v.add_child(UI.para("Swaps your blaster for this training session. Locked blasters work here too; buying them is still done in Loadout. A blaster from the other class switches your class (health, speed, abilities) from your next respawn."))
 	var cur: String = cb.current_weapon.call()
 	var g := UI.grid(3, 10, 10)
 	var first: Control = null
 	for wid in Cfg.WEAPON_ORDER:
 		var w: Dictionary = Cfg.WEAPONS[wid]
 		var tag := "" if Progress.owns(wid) else "Locked"
-		var c := UI.choice(w.name, w.category, wid == cur, func():
+		var c := UI.choice(w.name, "%s - %s" % [Cfg.CLASSES[Cfg.class_of_gun(wid)].name, w.category], wid == cur, func():
 			cb.training_try.call(wid)
 			cb.resume.call(), tag, 20, 13)
 		g.add_child(c)

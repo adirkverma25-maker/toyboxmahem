@@ -1,6 +1,7 @@
 class_name Loadout
-## The player's loadout: two weapons picked in the menu plus the scope chosen for each weapon, and the two
-## abilities (port of src/weapons/loadout.ts). Saved with the settings.
+## The player's loadout (port of src/weapons/loadout.ts, reworked for classes): a class (Light / Medium), one
+## blaster from that class, the scope chosen for each blaster, two abilities and (from the gadget update on) one
+## gadget. Each class keeps its own picks. Saved with the settings.
 
 
 static func _scope_map() -> Dictionary:
@@ -12,35 +13,76 @@ static func _prog() -> Node:
 	return Engine.get_main_loop().root.get_node("Progress")
 
 
-## Locked weapons fall back to a starter, so a loadout can never hold something you haven't unlocked.
-static func primary() -> String:
-	var p: String = Settings.get_v("primary")
-	return _prog().owned_or(p if Cfg.WEAPONS.has(p) else "foamFury", "foamFury")
+## Default picks per class (free starter blasters only).
+const DEFAULTS := {
+	"light": {"gun": "foamFury", "abilities": ["dash", "grapple"]},
+	"medium": {"gun": "jackBlaster", "abilities": ["shield", "jab"]},
+}
 
 
-static func secondary() -> String:
-	var s0: String = Settings.get_v("secondary")
-	var s: String = _prog().owned_or(s0 if Cfg.WEAPONS.has(s0) else "plasti9", "plasti9")
-	var p := primary()
-	if s == p:
-		return "foamFury" if p == "plasti9" else "plasti9"
-	return s
+## {class: {gun, abilities}}. The first time, it is built from the 1.1 loadout: your old main blaster decides
+## your class and stays your blaster; Light keeps whichever of its abilities you had.
+static func _data() -> Dictionary:
+	var raw := str(Settings.get_v("loadouts"))
+	var d = JSON.parse_string(raw) if raw != "" else null
+	if d is Dictionary and d.has("light") and d.has("medium"):
+		return d
+	d = DEFAULTS.duplicate(true)
+	var old_gun := str(Settings.get_v("primary"))
+	var c := "light"
+	if Cfg.WEAPONS.has(old_gun):
+		c = Cfg.class_of_gun(old_gun)
+		if _prog().owns(old_gun):
+			d[c].gun = old_gun
+	var ab := []
+	for x in str(Settings.get_v("abilities")).split(","):
+		if Cfg.CLASSES.light.abilities.has(x) and not ab.has(x):
+			ab.append(x)
+	for x in ["dash", "grapple", "cloak"]:
+		if ab.size() < 2 and not ab.has(x):
+			ab.append(x)
+	d.light.abilities = ab.slice(0, 2)
+	Settings.set_v("loadouts", JSON.stringify(d))
+	if str(Settings.get_v("class")) == "":
+		Settings.set_v("class", c)
+	return d
 
 
-## Put a weapon in slot 0 (primary) or 1 (secondary). Picking the other slot's weapon swaps them.
-static func set_weapon(slot: int, id: String) -> void:
-	if not _prog().owns(id):
+static func _save(d: Dictionary) -> void:
+	Settings.set_v("loadouts", JSON.stringify(d))
+
+
+## light | medium
+static func cls() -> String:
+	_data()
+	var c := str(Settings.get_v("class"))
+	return c if Cfg.CLASSES.has(c) else "light"
+
+
+static func set_cls(c: String) -> void:
+	if Cfg.CLASSES.has(c):
+		_data()
+		Settings.set_v("class", c)
+
+
+## The blaster for a class (default: the current class). Locked or wrong-class picks fall back to the class's
+## starter, so a loadout can never hold something you haven't unlocked or can't carry.
+static func gun(c := "") -> String:
+	if c == "":
+		c = cls()
+	var g := str(_data()[c].get("gun", ""))
+	if Cfg.CLASSES[c].guns.has(g) and _prog().owns(g):
+		return g
+	return DEFAULTS[c].gun
+
+
+static func set_gun(id: String) -> void:
+	var c := cls()
+	if not Cfg.CLASSES[c].guns.has(id) or not _prog().owns(id):
 		return
-	var p := primary()
-	var s := secondary()
-	if slot == 0:
-		Settings.set_v("primary", id)
-		if id == s:
-			Settings.set_v("secondary", p)
-	else:
-		Settings.set_v("secondary", id)
-		if id == p:
-			Settings.set_v("primary", s)
+	var d := _data()
+	d[c].gun = id
+	_save(d)
 
 
 static func scope(id: String) -> String:
@@ -55,24 +97,40 @@ static func set_scope(id: String, s: String) -> void:
 	Settings.set_v("scopes", JSON.stringify(m))
 
 
-## The two equipped abilities: [Ability 1, Ability 2].
-static func abilities() -> Array:
+## The two equipped abilities for a class (default: the current one). Mediums always get Shield + Punch;
+## Lights pick two of Dash, Spring Hook and Cloak.
+static func abilities(c := "") -> Array:
+	if c == "":
+		c = cls()
+	var allowed: Array = Cfg.CLASSES[c].abilities
+	if not Cfg.CLASSES[c].pick_abilities:
+		return allowed.slice(0, 2)
 	var uniq := []
-	for x in str(Settings.get_v("abilities")).split(","):
-		if Cfg.ABILITY_ORDER.has(x) and not uniq.has(x):
+	for x in _data()[c].get("abilities", []):
+		if allowed.has(x) and not uniq.has(x):
 			uniq.append(x)
-	for d in ["dash", "grapple", "jab"]:
-		if uniq.size() < 2 and not uniq.has(d):
-			uniq.append(d)
+	for x in DEFAULTS[c].abilities + allowed:
+		if uniq.size() < 2 and not uniq.has(x):
+			uniq.append(x)
 	return [uniq[0], uniq[1]]
 
 
-## Put an ability in slot 0 or 1. Picking the other slot's ability swaps them.
+## Put an ability in slot 0 or 1 (Light only). Picking the other slot's ability swaps them.
 static func set_ability(slot: int, id: String) -> void:
-	var cur := abilities()
+	var c := cls()
+	if not Cfg.CLASSES[c].pick_abilities or not Cfg.CLASSES[c].abilities.has(id):
+		return
+	var cur := abilities(c)
 	var other: String = cur[1 - slot]
 	var nxt := cur.duplicate()
 	nxt[slot] = id
 	if other == id:
 		nxt[1 - slot] = cur[slot]
-	Settings.set_v("abilities", ",".join(nxt))
+	var d := _data()
+	d[c].abilities = nxt
+	_save(d)
+
+
+## The gadget (the gadget update adds them): none yet.
+static func gadget(_c := "") -> String:
+	return ""

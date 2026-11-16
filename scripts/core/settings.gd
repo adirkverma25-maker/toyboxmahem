@@ -34,6 +34,10 @@ const DEFAULTS := {
 	"secondary": "plasti9",
 	"scopes": "{}",
 	"abilities": "dash,grapple",
+	## class (light | medium) and each class's picks as JSON {light: {gun, abilities}, medium: {gun}};
+	## "" = not set up yet (filled from the 1.1 primary/abilities the first time)
+	"class": "",
+	"loadouts": "",
 	"binds": "{}",
 	## online play: relay address ("" = the online server) and the last room code typed
 	"serverUrl": "",
@@ -102,7 +106,7 @@ func use_profile(id: String, seed_from_current := false) -> void:
 	data = _load(_skey(), DEFAULTS)
 	if not saved and seed_from_current:
 		data = prev.duplicate(true)
-		for k in ["primary", "secondary", "scopes", "abilities"]:
+		for k in ["primary", "secondary", "scopes", "abilities", "class", "loadouts"]:
 			data[k] = DEFAULTS[k]
 	data.map = Store.get_str(MAPKEY, prev.get("map", "bedroom"))
 	data.fov = clampf(data.fov, 70, 110)
@@ -114,7 +118,7 @@ func use_profile(id: String, seed_from_current := false) -> void:
 
 func reset() -> void:
 	var keep := {}
-	for k in ["map", "primary", "secondary", "scopes", "abilities", "binds"]:
+	for k in ["map", "primary", "secondary", "scopes", "abilities", "class", "loadouts", "binds"]:
 		keep[k] = data[k]
 	data = DEFAULTS.duplicate(true)
 	data.merge(keep, true)

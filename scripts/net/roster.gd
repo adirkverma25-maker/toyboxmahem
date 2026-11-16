@@ -67,7 +67,7 @@ static func human_def(nm: String) -> Dictionary:
 ## A toy this machine does not move itself. Host: a guest's toy. Guest: every toy except your own.
 static func new_remote(seat: int, net_id: String) -> Dictionary:
 	# state = host: the latest state the guest sent; life = host: spawn counter (older states are ignored)
-	return {"seat": seat, "net_id": net_id, "state": null, "life": 0, "revive_held": false, "reload": 0.0}
+	return {"seat": seat, "net_id": net_id, "state": null, "life": 0, "revive_held": false, "reload": 0.0, "cls": "light", "cls_life": -1}
 
 
 ## Rig animation for a toy from its plain fields (the same thing Bot.anim_state gives).
