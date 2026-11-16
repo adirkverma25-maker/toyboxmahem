@@ -19,6 +19,8 @@ var combat: Combat
 ## breakable walls / cover and the chunks they leave
 var destruction: Destruction
 var debris: Debris
+## the throw preview while you hold the gadget key
+var grenade_arc: GrenadeArc
 var pickups: Pickups
 var match_: Match
 var hud: HUD
@@ -150,6 +152,8 @@ func _init_game() -> void:
 	combat.destruction = destruction
 	debris = Debris.new()
 	r.world.add_child(debris)
+	grenade_arc = GrenadeArc.new()
+	r.world.add_child(grenade_arc)
 	destruction.fx_hooks(debris, fx, audio)
 	destruction.on_break = _on_piece_broken
 	destruction.on_crack = func(id: int) -> void:
@@ -1410,6 +1414,11 @@ func _player_input(dt: float, now: float, frozen: bool, blocked := false) -> voi
 		return
 	if not frozen:
 		pl.update(dt, now)
+		if pl.gadget_aiming and pl.actor.alive:
+			var th := Abilities.gadget_throw(pl.actor)
+			grenade_arc.show_arc(phys, pl.actor.gadget, th[0], th[1])
+		else:
+			grenade_arc.hide_arc()
 	else:
 		# allow looking around during the countdown (mouse or right stick)
 		pl.look(dt, false)

@@ -16,6 +16,28 @@ static func run(g) -> void:
 			dummy = o
 			break
 	var bad := 0
+	var shots := ""
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--shots="):
+			shots = arg.trim_prefix("--shots=")
+	if shots != "":
+		# hold the gadget key: the throw arc and landing ring show
+		pa.gadget = "fragGrenade"
+		pa.gadget_ready_at = 0
+		pa.teleport(Vector3(0, 0.3, 14))
+		pa.yaw = 0
+		pa.pitch = 0.1
+		var key: String = Binds.kb["gadget"][0]
+		g.input._down[key] = true
+		g.input._pressed[key] = true
+		for i in 20:
+			g.input._down[key] = true
+			await tree.process_frame
+		g._shot(shots.path_join("grenade_aim.png"))
+		g.input._down.erase(key)
+		for i in 5:
+			await tree.process_frame
+		print("[gadget] aimed throw: arc shown, then thrown on release: %s" % (pa.gadget_ready_at > g.time))
 	for gid in Cfg.GADGETS:
 		pa.teleport(Vector3(0, 0.3, 10))
 		pa.yaw = 0

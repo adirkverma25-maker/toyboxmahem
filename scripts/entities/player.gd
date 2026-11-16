@@ -39,6 +39,8 @@ var prev_ads := 0.0
 var spectating: Actor = null
 ## true while revive is held
 var revive_held := false
+## the gadget key is held: showing the throw arc, it's thrown on release
+var gadget_aiming := false
 ## last ability that failed because it was cooling down (HUD flashes it)
 var denied := {"key": "", "at": -9.0}
 
@@ -276,11 +278,18 @@ func update(dt: float, now: float) -> void:
 		var adeps := {"combat": combat, "phys": deps.phys, "audio": audio}
 		if input.act_pressed("ability1") and a.abilities.size() and a.abilities[0] != "":
 			_use_ability(a.abilities[0], now, adeps)
+		# gadget: hold to aim (the arc and landing ring show), let go to throw
 		if input.act_pressed("gadget"):
-			if Abilities.try_gadget(a, now, adeps):
-				add_trauma(0.05)
+			if a.gadget != "" and now >= a.gadget_ready_at:
+				gadget_aiming = true
 			elif a.gadget != "":
 				denied = {"key": a.gadget, "at": now}
+		if gadget_aiming and not input.act("gadget"):
+			gadget_aiming = false
+			if Abilities.try_gadget(a, now, adeps):
+				add_trauma(0.05)
+	if not a.alive:
+		gadget_aiming = false
 	revive_held = a.alive and input.act("revive")
 	# interact: grab a zipline in reach (reviving a teammate takes priority)
 	if a.alive and a.zip == null and input.act_pressed("revive") and deps.has("try_zip"):

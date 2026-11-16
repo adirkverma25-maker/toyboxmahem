@@ -62,7 +62,7 @@ Each class has its own gadgets too; they arrive in the next update.
 | Reload | R | X |
 | Revive teammate, grab a zipline | E | X |
 | Ability | Q | RB |
-| Gadget | F | LB |
+| Gadget (hold to aim, let go to throw) | F | LB |
 | Scoreboard | Tab | View |
 | Pause | Esc | Menu |
 
