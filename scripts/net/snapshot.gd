@@ -30,7 +30,8 @@ const HIT_FLINCH := 23
 const DASHING := 24
 const SLIDING := 25
 const CLOAKED := 26
-const JAB := 27
+## melee swing timer (seconds left)
+const MELEE_T := 27
 const RESPAWN := 28
 const REVIVE_T := 29
 const TURBO := 30
@@ -41,7 +42,9 @@ const GX := 34
 const GY := 35
 const GZ := 36
 const BEST_STREAK := 37
-const LENGTH := 38
+## class: 0 light, 1 medium (which melee weapon the toy swings)
+const CLS := 38
+const LENGTH := 39
 
 ## fields that blend smoothly between snapshots; everything else steps to the newer value
 const LERP := [X, Y, Z, PITCH, CROUCH, ADS, SPEED]
@@ -117,7 +120,8 @@ static func pack_actor(a: Actor, now: float) -> Array:
 	p[DASHING] = _b(a.dashing)
 	p[SLIDING] = _b(a.sliding)
 	p[CLOAKED] = _b(a.cloaked)
-	p[JAB] = r2(a.jab_t)
+	p[MELEE_T] = r2(a.melee_t)
+	p[CLS] = 1 if a.cls == "medium" else 0
 	p[RESPAWN] = NO_RESPAWN if a.respawn_at < 0 else r2(a.respawn_at - now)
 	p[REVIVE_T] = r2(a.revive_t)
 	p[TURBO] = _left(a.buffs.turbo, now)
@@ -154,7 +158,9 @@ static func unpack_actor_into(p: Array, a: Actor, now: float) -> void:
 	a.dashing = p[DASHING] > 0
 	a.sliding = p[SLIDING] > 0
 	a.cloaked = p[CLOAKED] > 0
-	a.jab_t = p[JAB]
+	a.melee_t = p[MELEE_T]
+	if p.size() > CLS:
+		a.cls = "medium" if p[CLS] > 0 else "light"
 	if p[GRAPPLE] > 0:
 		var anchor := Vector3(p[GX], p[GY], p[GZ])
 		if a.grapple != null:

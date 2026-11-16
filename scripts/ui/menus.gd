@@ -10,7 +10,6 @@ extends Control
 
 const ABILITY_INFO := {
 	"dash": {"short": "Dash", "desc": "Burst forward a few meters. 5 s cooldown."},
-	"jab": {"short": "Punch", "desc": "50 damage up close and a shove. 3 s cooldown."},
 	"grapple": {"short": "Hook", "desc": "Pull yourself to a spot up to 48 m away, up and over ledges. 7 s cooldown."},
 	"cloak": {"short": "Cloak", "desc": "Invisible beyond 2.5 m for up to 15 s. Press again to drop it. Firing drops it."},
 	"shield": {"short": "Shield", "desc": "Wall that stops 260 enemy damage for 7 s. 15 s cooldown."},
@@ -610,13 +609,13 @@ func collection(back_to: String) -> void:
 	wallet.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	tr.add_child(wallet)
 	v.add_child(tr)
-	v.add_child(UI.para("Pick a class, then its blaster, scope and abilities." + (" Changes apply the next time you respawn." if back_to == "pause" else "")))
+	v.add_child(UI.para("Pick a class, then its blaster, scope and abilities. Lights swing a Toy Sword, Mediums a Toy Spear (melee key)." + (" Changes apply the next time you respawn." if back_to == "pause" else "")))
 	# class
 	var cls := Loadout.cls()
 	var crow := UI.grid(2, 10, 10)
 	for c in Cfg.CLASS_ORDER:
 		var cd: Dictionary = Cfg.CLASSES[c]
-		var sub := "%d health, %s" % [cd.health, "faster, Dash / Spring Hook / Cloak" if c == "light" else "slower and tougher, Mesh Shield + Spring Punch"]
+		var sub := "%d health, %s" % [cd.health, "faster, Dash / Spring Hook / Cloak, Toy Sword" if c == "light" else "slower and tougher, Mesh Shield + Cloak, Toy Spear"]
 		crow.add_child(UI.choice(cd.name.to_upper(), sub, c == cls, func():
 			Loadout.set_cls(c)
 			selected_weapon = Loadout.gun()

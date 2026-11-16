@@ -4,7 +4,7 @@ extends Control
 ## weapon + ammo, abilities, timer and scores, kill feed, announcements, death screen, scoreboard, team tags,
 ## objective markers. Corner panels scale like the original's CSS zoom; screen-space marks stay pixel-sized.
 
-const ABIL_UI := [["dash", "Dash"], ["jab", "Punch"], ["grapple", "Hook"], ["cloak", "Cloak"], ["shield", "Shield"]]
+const ABIL_UI := [["dash", "Dash"], ["grapple", "Hook"], ["cloak", "Cloak"], ["shield", "Shield"]]
 const STREAKS := {2: "Double pop!", 3: "Triple pop!", 4: "Toy box tantrum!", 5: "Unstoppable toy!", 7: "Playroom legend!", 10: "Toy of the year!"}
 const FX_SHADER := preload("res://shaders/hud_fx.gdshader")
 
@@ -678,9 +678,6 @@ func update(dt: float, now: float, p: Player, actors: Array, m: Match, cam: Came
 			"dash":
 				left = a.dash_ready_at - now
 				total = Cfg.MOVE.dashCooldown
-			"jab":
-				left = a.jab_ready_at - now
-				total = Cfg.ABILITIES.jab.cooldown
 			"grapple":
 				left = a.grapple_ready_at - now
 				total = Cfg.ABILITIES.grapple.cooldown

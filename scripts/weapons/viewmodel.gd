@@ -31,9 +31,11 @@ var bolt_t := 0.0
 var reload_vis := 0.0
 var time := 0.0
 var jack_t := 0.0
-var glove := Node3D.new()
-var glove_spring := Node3D.new()
-var punch_t := 0.0
+## melee (sword / spear): the model, which one it is, the swing timer and its length
+var melee_node := Node3D.new()
+var melee_kind := ""
+var melee_t := 0.0
+var melee_len := 0.5
 var cloak_mat: StandardMaterial3D
 var cloak_on := false
 var scope_hidden := false
@@ -85,21 +87,8 @@ func _init(toy_color := "#1fb5ad", cuff_color := "#ff8c1a") -> void:
 	flash_mat.render_priority = 10
 	flash = Geo.plane(0.32, 0.32).mesh_instance(flash_mat, Vector3.ZERO, Basis(), false)
 	flash.visible = false
-	# Spring Punch: boxing glove on a spring that pops out from the lower right
-	var red := Mats.plastic("#e63946", {"rough": 0.3})
-	var g := Node3D.new()
-	g.add_child(Geo.rounded_box(0.12, 0.11, 0.13, 3, 0.05).mesh_instance(red, Vector3.ZERO, Basis(), false))
-	g.add_child(Geo.capsule(0.03, 0.05, 4, 8).mesh_instance(red, Vector3(-0.06, 0, -0.01), Basis(Vector3.RIGHT, PI / 2), false))
-	g.add_child(Geo.cylinder(0.05, 0.05, 0.05, 14).mesh_instance(Mats.plastic("#ffffff", {"rough": 0.4}), Vector3(0, 0, 0.08), Basis(Vector3.RIGHT, PI / 2), false))
-	glove.add_child(g)
-	var pts := []
-	for i in 97:
-		var a := float(i) / 96 * 8 * TAU
-		pts.append(Vector3(cos(a) * 0.03, sin(a) * 0.03, float(i) / 96))
-	glove_spring.add_child(Geo.tube(pts, 96, 0.006, 5).mesh_instance(Mats.metal("#d6dbe3", 0.2), Vector3.ZERO, Basis(), false))
-	glove.add_child(glove_spring)
-	glove.visible = false
-	add_child(glove)
+	melee_node.visible = false
+	add_child(melee_node)
 	cloak_mat = StandardMaterial3D.new()
 	cloak_mat.albedo_color = Color(U.col("#d8ecff"), 0.22)
 	cloak_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -113,9 +102,17 @@ func _init(toy_color := "#1fb5ad", cuff_color := "#ff8c1a") -> void:
 	cloak_mat.emission_energy_multiplier = 0.25
 
 
-## Spring Punch animation.
-func punch() -> void:
-	punch_t = 0.32
+## Melee swing (kind: sword / spear, swing: seconds).
+func melee(kind: String, swing: float) -> void:
+	if kind != melee_kind:
+		for c in melee_node.get_children():
+			c.queue_free()
+		var m := MeleeModel.build(kind)
+		m.scale = Vector3.ONE * (0.55 if kind == "spear" else 0.6)
+		melee_node.add_child(m)
+		melee_kind = kind
+	melee_len = swing
+	melee_t = swing
 	inspect_t = 0
 
 
@@ -346,21 +343,18 @@ func update(dt: float, c: Dictionary) -> void:
 	var hpos := Vector3(pos.x + bx + sway_x, pos.y + by + breathe + sway_y + land[0] * 0.04 * rm, pos.z + kz)
 	var hrot := Vector3(rx + kr + sway_y * 2, ry + sway_x * 2.5, rz + kick_roll[0] * rm + sway_x * 1.5)
 	holder.visible = not (scope_hidden and c.ads > 0.9)
-	# spring punch glove
-	if punch_t > 0:
-		punch_t = maxf(0, punch_t - dt)
-		var t := 1 - punch_t / 0.32
-		var out := U.smoothstep(0, 0.3, t) if t < 0.3 else 1 - U.smoothstep(0.45, 1, t)
-		glove.visible = true
-		var base := Vector3(0.1, -0.2, -0.05)
-		var reach := 0.25 + out * 0.32
-		glove.transform = Transform3D(U.euler(0.1, 0.15, 0), Vector3(base.x - out * 0.06, base.y + out * 0.1, base.z - reach))
-		glove_spring.transform = Transform3D(Basis.from_scale(Vector3(1, 1, reach)), Vector3(0, 0, 0.06))
-		# the gun dips out of the way
-		hpos.y -= out * 0.06
-		hrot.z -= out * 0.2
+	# melee: the sword / spear swings across the view while the blaster dips out of the way
+	if melee_t > 0:
+		melee_t = maxf(0, melee_t - dt)
+		var k := 1 - melee_t / melee_len
+		var out := U.smoothstep(0, 0.2, k) if k < 0.2 else 1 - U.smoothstep(0.75, 1, k)
+		melee_node.visible = true
+		var pz := MeleeModel.pose(melee_kind, k)
+		melee_node.transform = Transform3D(pz.basis, Vector3(0.18, -0.22, -0.3) + pz.origin * 0.6)
+		hpos.y -= out * 0.12
+		hrot.z -= out * 0.3
 	else:
-		glove.visible = false
+		melee_node.visible = false
 	# bow: limbs, string and arrow follow the draw
 	if current_id == "plungerBow":
 		var draw := U.smoothstep(0, 1, c.charge)

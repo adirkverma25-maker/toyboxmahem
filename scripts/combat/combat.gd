@@ -633,62 +633,68 @@ func _stick_arrow(point: Vector3, d: Vector3, color: String) -> void:
 	_stuck.visible_instance_count = maxi(_stuck.visible_instance_count, i + 1)
 
 
-## Spring Punch: a spring-loaded boxing glove pops out and hits the closest enemy in front.
-## Returns the toy that got punched (or null on a whiff).
-func jab(attacker: Actor) -> Actor:
-	var J: Dictionary = Cfg.ABILITIES.jab
+## Melee: swing the class's toy weapon. Everyone whose body is inside the zone in front gets hit (a big,
+## forgiving zone: within reach plus their body radius, inside the arc, a wide band up and down).
+## Walls and props in the way take a chip too. Returns the toys that got hit.
+func melee(attacker: Actor) -> Array:
+	var md := attacker.melee_def()
 	var eye := attacker.eye_pos()
 	var fwd := attacker.forward()
+	var flat_f := Vector3(fwd.x, 0, fwd.z).normalized()
 	attacker.reveal_at = now
 	attacker.spawn_protect_until = minf(attacker.spawn_protect_until, now)
-	var cos_max := cos(deg_to_rad(J.coneDeg))
-	var best: Actor = null
-	var best_d := INF
+	var half := deg_to_rad(md.arcDeg) / 2.0
+	var power: float = Cfg.PICKUPS.powerMult if attacker.has_buff("power", now) else 1.0
+	var hits := []
+	_auth = local_auth
 	for a in actors.call():
 		if not a.alive or not attacker.is_enemy(a):
 			continue
-		var c: Vector3 = a.chest_pos()
-		var to := c - eye
-		var dist := to.length()
-		if dist > J.range + a.def.hitbox.bodyR + 0.4:
+		var r: float = a.def.hitbox.bodyR
+		# test the feet, chest and head: any of them in the zone counts
+		var hit_at = null
+		for pt in [a.pos + Vector3(0, 0.35, 0), a.chest_pos(), a.head_pos()]:
+			var to: Vector3 = pt - eye
+			var flat := Vector3(to.x, 0, to.z)
+			var dist := flat.length()
+			if dist > md.range + r or absf(to.y) > 2.2:
+				continue
+			# the body's width widens the arc up close
+			var allow := half + (atan2(r, maxf(dist, 0.1)) if dist > 0.01 else PI)
+			if dist > 0.3 and flat_f.angle_to(flat / dist) > allow:
+				continue
+			if not phys.los(eye, pt, true):
+				continue
+			hit_at = pt
+			break
+		if hit_at == null:
 			continue
-		# be generous vertically: compare against the flattened aim when they're right next to us
-		var dir := to / maxf(1e-4, dist)
-		var flat_f := Vector3(fwd.x, 0, fwd.z).normalized()
-		var flat_d := Vector3(dir.x, 0, dir.z).normalized()
-		if dir.dot(fwd) < cos_max and (dist > 1.6 or flat_d.dot(flat_f) < cos_max):
-			continue
-		if not phys.los(eye, c, true):
-			continue
-		if not barriers.between(eye, c, attacker).is_empty():
-			continue
-		if dist < best_d:
-			best_d = dist
-			best = a
-	if best == null:
-		# maybe we punched an enemy shield
-		var wall := barriers.trace(eye, fwd, J.range, attacker)
+		var wall := barriers.between(eye, hit_at, attacker)
 		if not wall.is_empty():
-			_hit_barrier(wall.b, eye + fwd * wall.t, J.damage)
-		else:
-			_auth = local_auth
-			_hit_piece(phys.raycast(eye, fwd, J.range), J.damage)
-			_auth = "full"
-		return null
-	var point := best.chest_pos()
-	var push := Vector3(point.x - attacker.pos.x, 0, point.z - attacker.pos.z).normalized()
-	var power: float = Cfg.PICKUPS.powerMult if attacker.has_buff("power", now) else 1.0
+			_hit_barrier(wall.b, hit_at, md.damage)
+			continue
+		var push := Vector3(a.pos.x - attacker.pos.x, 0, a.pos.z - attacker.pos.z).normalized()
+		apply_damage(a, attacker, md.damage * power, false, hit_at, md.id, push)
+		_kick(a, push.x * md.knockback, 0, push.z * md.knockback, 3.0)
+		fx.hit_spark(hit_at, md.color, false, true)
+		hits.append(a)
 	attacker.shots_fired += 1
-	attacker.shots_hit += 1
-	_auth = local_auth
-	apply_damage(best, attacker, J.damage * power, false, point, "jab", push)
-	_kick(best, push.x * J.knockback, 0, push.z * J.knockback, 3.5)
+	if hits.size():
+		attacker.shots_hit += 1
+	else:
+		var shield := barriers.trace(eye, fwd, md.range, attacker)
+		if not shield.is_empty():
+			_hit_barrier(shield.b, eye + fwd * shield.t, md.damage)
+		else:
+			_hit_piece(phys.raycast(eye, fwd, md.range), md.damage * power)
 	_auth = "full"
 	_flush_claims()
-	fx.hit_spark(point, "#ff4d6d", false, true)
-	for i in 10:
-		fx.glow.emit(point, Vector3(U.rand(-3, 3), U.rand(0, 4), U.rand(-3, 3)), U.col(U.pick(["#ffd166", "#ffffff", "#ff4d6d"])), U.rand(0.1, 0.2), U.rand(0.2, 0.4), {"gravity": 6, "drag": 3})
-	return best
+	# a quick swoosh of light along the swing
+	for i in 8:
+		var a2 := lerpf(-half, half, float(i) / 7.0)
+		var d := flat_f.rotated(Vector3.UP, a2)
+		fx.glow.emit(eye + d * md.range * 0.75 + Vector3(0, -0.25, 0), d * 2.0, U.col(md.color), 0.18, 0.18, {"drag": 4})
+	return hits
 
 
 ## Single authority for damage + eliminations.

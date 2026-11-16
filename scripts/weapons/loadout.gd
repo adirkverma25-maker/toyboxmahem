@@ -16,7 +16,7 @@ static func _prog() -> Node:
 ## Default picks per class (free starter blasters only).
 const DEFAULTS := {
 	"light": {"gun": "foamFury", "abilities": ["dash", "grapple"]},
-	"medium": {"gun": "jackBlaster", "abilities": ["shield", "jab"]},
+	"medium": {"gun": "jackBlaster", "abilities": ["shield", "cloak"]},
 }
 
 
@@ -97,7 +97,7 @@ static func set_scope(id: String, s: String) -> void:
 	Settings.set_v("scopes", JSON.stringify(m))
 
 
-## The two equipped abilities for a class (default: the current one). Mediums always get Shield + Punch;
+## The two equipped abilities for a class (default: the current one). Mediums always get Shield + Cloak;
 ## Lights pick two of Dash, Spring Hook and Cloak.
 static func abilities(c := "") -> Array:
 	if c == "":

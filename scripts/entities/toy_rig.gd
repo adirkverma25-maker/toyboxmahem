@@ -33,8 +33,8 @@ var smooth_lean := 0.0
 var outline_meshes: Array = []
 var shimmer_mats: Array = []
 var scale_in := 1.0
-var _glove: Node3D = null
-var _glove_spring: MeshInstance3D = null
+var _melee: Node3D = null
+var _melee_kind := ""
 var _cloak_mat: StandardMaterial3D = null
 var _cloak_applied := false
 var _outline_on := false
@@ -141,42 +141,25 @@ func _repaint(map: Dictionary) -> void:
 		m.material_override = cache[mat]
 
 
-# ---- Spring Punch glove (third person)
-func _ensure_glove() -> void:
-	if _glove:
+# ---- melee weapon (third person): shown only while swinging
+## t = seconds left on the swing, kind = sword / spear, swing = full swing length
+func set_melee(t: float, kind := "sword", swing := 0.5) -> void:
+	if t <= 0:
+		if _melee:
+			_melee.visible = false
 		return
-	var g := Node3D.new()
-	g.add_child(mesh(rbox(0.2, 0.18, 0.2, 0.08), P("#e63946", {"rough": 0.3})))
-	var pts := []
-	for i in 61:
-		var a := float(i) / 60 * 6 * TAU
-		pts.append(Vector3(cos(a) * 0.05, sin(a) * 0.05, float(i) / 60))
-	var spring := mesh(Geo.tube(pts, 60, 0.01, 4), Mats.metal("#d6dbe3", 0.2))
-	spring.set_meta("no_outline", true)
-	g.set_meta("no_outline", true)
-	_glove_spring = spring
-	torso.add_child(g)
-	torso.add_child(spring)
-	g.visible = false
-	spring.visible = false
-	_glove = g
-
-
-## t = seconds left on the punch (0.32 .. 0)
-func set_punch(t: float) -> void:
-	if t <= 0 and _glove == null:
-		return
-	_ensure_glove()
-	var on := t > 0
-	_glove.visible = on
-	_glove_spring.visible = on
-	if not on:
-		return
-	var k := 1 - t / 0.32
-	var out := k / 0.3 if k < 0.3 else maxf(0, 1 - (k - 0.45) / 0.55)
-	var reach := 0.15 + out * 0.75
-	_glove.position = Vector3(-0.18, 0.4, 0.2 + reach)
-	_glove_spring.transform = Transform3D(Basis.from_scale(Vector3(1, 1, reach)), Vector3(-0.18, 0.4, 0.2))
+	if _melee == null or kind != _melee_kind:
+		if _melee:
+			_melee.queue_free()
+		_melee = Node3D.new()
+		_melee.add_child(MeleeModel.build(kind))
+		_melee.set_meta("no_outline", true)
+		torso.add_child(_melee)
+		_melee_kind = kind
+	_melee.visible = true
+	var pz := MeleeModel.pose(kind, 1 - t / maxf(swing, 0.01))
+	# the rig faces +Z: turn the -Z pose round, hold it at the right shoulder
+	_melee.transform = Transform3D(Basis(Vector3.UP, PI) * pz.basis, Vector3(-0.2, 0.45, 0.15) + Basis(Vector3.UP, PI) * pz.origin)
 
 
 ## Cloak: opacity 0 = normal. Anything > 0 renders the toy as a ghostly shimmer at that opacity.

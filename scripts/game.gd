@@ -641,7 +641,7 @@ func _register_events() -> void:
 		var victim: Actor = k.victim
 		var killer = k.killer
 		match_.on_kill(killer, victim)
-		var wname: String = "FALLING BLOCK" if k.weapon == "block" else ("SPRING PUNCH" if k.weapon == "jab" else Cfg.WEAPONS.get(k.weapon, {}).get("name", ""))
+		var wname: String = "FALLING BLOCK" if k.weapon == "block" else (Cfg.MELEE[k.weapon].name.to_upper() if Cfg.MELEE.has(k.weapon) else Cfg.WEAPONS.get(k.weapon, {}).get("name", ""))
 		hud.kill_feed(killer, victim, wname, k.head, killer == pl or victim == pl)
 		if victim == pl and player:
 			player.on_death(killer)
@@ -1672,7 +1672,7 @@ func _update_rigs(dt: float) -> void:
 			rig.visible = down
 			if down:
 				rig.set_cloak(0, time)
-				rig.set_punch(0)
+				rig.set_melee(0)
 				rig.scale_in = 1
 				rig.scale = Vector3.ONE
 				rig.position = Vector3(a.pos.x, a.pos.y + 0.32, a.pos.z)
@@ -1684,7 +1684,7 @@ func _update_rigs(dt: float) -> void:
 		rig.rotation = Vector3(0, a.yaw + PI, 0)
 		rig.update(dt, b.anim_state(time) if b else Roster.actor_anim(a, time, remotes[a].reload if remotes.has(a) else 0.0), time)
 		rig.set_shimmer(a.is_protected(time), time)
-		rig.set_punch(a.jab_t)
+		rig.set_melee(a.melee_t, Cfg.CLASSES[a.cls].melee, a.melee_def().swing)
 		# cloaked toys: teammates see a ghost, enemies barely a shimmer (a bit more up close)
 		var me: Actor = player.actor if player else null
 		var op := 0.0

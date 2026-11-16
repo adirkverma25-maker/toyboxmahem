@@ -36,7 +36,6 @@ static func pick_bot_abilities(p: Dictionary, cls := "light") -> Array:
 		return Cfg.CLASSES[cls].abilities.slice(0, 2)
 	var w := {
 		"dash": 0.4 + p.dashUse,
-		"jab": 0.2 + p.aggression * 0.9,
 		"grapple": 0.5 + p.jumpiness * 0.5,
 		"cloak": 0.3 + p.caution * 0.5 + p.aggression * 0.3,
 		"shield": 0.2 + p.caution * 1.0,
@@ -508,9 +507,8 @@ func _use_abilities(now: float) -> void:
 		var dist := t.pos.distance_to(a.pos)
 		var to := Vector3(t.pos.x - a.pos.x, 0, t.pos.z - a.pos.z).normalized()
 		var facing := to.dot(Vector3(-sin(a.yaw), 0, -cos(a.yaw)))
-		if a.has("jab") and dist < Cfg.ABILITIES.jab.range and facing > 0.8 and now >= a.jab_ready_at and now >= _reaction_until:
-			if Abilities.try_jab(a, now, deps):
-				a.jab_t = 0.32
+		if dist < a.melee_def().range + 0.3 and facing > 0.75 and now >= a.melee_ready_at and now >= _reaction_until:
+			Abilities.try_melee(a, now, deps)
 		if now >= _ability_check_at:
 			_ability_check_at = now + 0.5
 			var pinned := a.damage_in_last(2, now) > 22 or (ws != null and ws.reloading)

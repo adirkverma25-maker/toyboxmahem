@@ -265,7 +265,7 @@ func drive(a: Actor, r: Dictionary) -> void:
 	a.dashing = s.dashing
 	a.cloaked = s.cloaked
 	a.fire_kick = maxf(a.fire_kick, s.fireKick)
-	a.jab_t = s.jabT
+	a.melee_t = s.meleeT
 	if s.grapple != null:
 		var anchor := Snapshot.vec(s.grapple)
 		if a.grapple != null:

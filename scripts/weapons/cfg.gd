@@ -230,8 +230,8 @@ const MOVE := {
 	"walkSpeed": 5.5,
 	"sprintMult": 1.45,
 	"crouchSpeed": 2.8,
-	"jumpVelocity": 6.5,
-	"gravity": 15.0,
+	"jumpVelocity": 7.87,  # same 1.4 m jump height under the stronger gravity
+	"gravity": 22.0,
 	"groundAccel": 65.0,
 	"groundDecel": 50.0,
 	"airAccel": 14.0,
@@ -255,19 +255,26 @@ const MOVE := {
 ## Light: quick and fragile, movement tricks. Medium: tougher and slower, no Dash or Spring Hook, no grenades.
 const CLASSES := {
 	"light": {
-		"name": "Light", "health": 100.0, "speed": 1.1, "pick_abilities": true,
+		"name": "Light", "health": 100.0, "speed": 1.1, "pick_abilities": true, "melee": "sword",
 		"guns": ["foamFury", "rapidRascal", "bubbleBlaster", "thunderspring", "plungerBow", "starlightZapper", "plasti9"],
 		"abilities": ["dash", "grapple", "cloak"],
 		"gadgets": ["glitchJug", "stairs", "fragGrenade", "pyroGrenade"],
 	},
 	"medium": {
-		"name": "Medium", "health": 150.0, "speed": 0.9, "pick_abilities": false,
+		"name": "Medium", "health": 150.0, "speed": 0.9, "pick_abilities": false, "melee": "spear",
 		"guns": ["brickbreaker", "popcornPopper", "crayonCannon", "jackBlaster", "walloper"],
-		"abilities": ["shield", "jab"],
+		"abilities": ["shield", "cloak"],
 		"gadgets": ["turret", "healthInfuser", "breachDrill", "explosiveMine", "pyroMine"],
 	},
 }
 const CLASS_ORDER := ["light", "medium"]
+
+## Melee (the melee key): every toy swings its class's toy weapon. Anyone whose body is in the zone gets hit:
+## within `range` (plus their body radius) and inside `arcDeg` (total width) of where you're facing.
+const MELEE := {
+	"sword": {"id": "sword", "name": "Toy Sword", "damage": 55.0, "range": 3.2, "arcDeg": 90.0, "swing": 0.55, "knockback": 5.0, "color": "#c9d6e3"},
+	"spear": {"id": "spear", "name": "Toy Spear", "damage": 70.0, "range": 4.2, "arcDeg": 50.0, "swing": 0.8, "knockback": 7.0, "color": "#d9a066"},
+}
 
 
 ## Which class a blaster belongs to.
@@ -305,9 +312,8 @@ const PICKUPS := {
 
 const ABILITIES := {
 	"dash": {"name": "Wind-Up Dash", "key": "Q", "cooldown": 5.0},
-	"jab": {"name": "Spring Punch", "key": "V", "cooldown": 3.0, "damage": 50.0, "range": 2.6, "coneDeg": 38.0, "knockback": 7.0},
 	"grapple": {"name": "Spring Hook", "key": "F", "cooldown": 7.0, "missCooldown": 1.0, "range": 48.0, "speed": 27.0, "maxTime": 2.4},
 	"cloak": {"name": "Cloak", "key": "Z", "maxActive": 15.0, "baseCooldown": 5.0, "revealDistance": 2.5},
 	"shield": {"name": "Mesh Shield", "key": "X", "cooldown": 15.0, "duration": 7.0, "hp": 260.0, "width": 2.8, "height": 2.2},
 }
-const ABILITY_ORDER := ["dash", "jab", "grapple", "cloak", "shield"]
+const ABILITY_ORDER := ["dash", "grapple", "cloak", "shield"]

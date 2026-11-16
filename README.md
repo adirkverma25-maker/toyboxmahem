@@ -38,8 +38,8 @@ Walls, cover and glass can be shot and blown apart: blast your own way into a bu
 
 Pick a class in **Loadout**:
 
-- **Light:** 100 health and faster. Blasters: Foam Fury, Rapid Rascal, Bubble Blaster, Thunderspring, Plunger Longbow, Starlight Zapper, Plasti-9. Pick two abilities from Wind-Up Dash, Spring Hook and Cloak.
-- **Medium:** 150 health but slower. Blasters: Brickbreaker, Popcorn Popper, Crayon Cannon, Jack-in-the-Blaster, Walloper. Always has the Mesh Shield and Spring Punch.
+- **Light:** 100 health and faster. Blasters: Foam Fury, Rapid Rascal, Bubble Blaster, Thunderspring, Plunger Longbow, Starlight Zapper, Plasti-9. Pick two abilities from Wind-Up Dash, Spring Hook and Cloak. Melee: Toy Sword (wide, quick swings).
+- **Medium:** 150 health but slower. Blasters: Brickbreaker, Popcorn Popper, Crayon Cannon, Jack-in-the-Blaster, Walloper. Always has the Mesh Shield and Cloak. Melee: Toy Spear (long reach).
 
 Each class has its own gadgets too; they arrive in the next update.
 
@@ -63,6 +63,7 @@ Each class has its own gadgets too; they arrive in the next update.
 | Revive teammate, grab a zipline | E | X |
 | Switch weapon | 1 / 2 | Y |
 | Abilities | Q / F | RB / LB |
+| Melee (sword / spear) | V | Right stick click |
 | Scoreboard | Tab | View |
 | Pause | Esc | Menu |
 

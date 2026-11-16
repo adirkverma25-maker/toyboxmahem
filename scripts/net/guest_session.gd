@@ -244,7 +244,7 @@ func _own_state():
 		"weapon": ws.id if ws else "", "reload": Snapshot.r2(maxf(0.01, ws.reload_progress())) if ws and ws.reloading else 0,
 		"ads": Snapshot.r2(a.ads), "crouch": Snapshot.r2(a.crouch_t), "sliding": a.sliding, "dashing": a.dashing, "cloaked": a.cloaked,
 		"fireKick": Snapshot.r2(a.fire_kick), "revive": pl.revive_held, "grapple": Snapshot.v3(a.grapple.anchor) if a.grapple != null else null,
-		"jabT": Snapshot.r2(a.jab_t), "cls": a.cls,
+		"meleeT": Snapshot.r2(a.melee_t), "cls": a.cls,
 	}
 
 

@@ -21,6 +21,7 @@ const ACTIONS := [
 	{"id": "weapon2", "label": "Secondary weapon", "kb": ["Digit2", ""], "pad": -1},
 	{"id": "ability1", "label": "Ability 1", "kb": ["KeyQ", ""], "pad": 5},
 	{"id": "ability2", "label": "Ability 2", "kb": ["KeyF", ""], "pad": 4},
+	{"id": "melee", "label": "Melee (sword / spear)", "kb": ["KeyV", ""], "pad": 11},
 	{"id": "inspect", "label": "Inspect weapon", "kb": ["KeyT", ""], "pad": 14},
 	{"id": "scoreboard", "label": "Scoreboard (hold)", "kb": ["Tab", ""], "pad": 8},
 ]

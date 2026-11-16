@@ -276,6 +276,9 @@ func update(dt: float, now: float) -> void:
 		for k in [["ability1", 0], ["ability2", 1]]:
 			if input.act_pressed(k[0]) and a.abilities.size() > k[1] and a.abilities[k[1]] != "":
 				_use_ability(a.abilities[k[1]], now, adeps)
+		if input.act_pressed("melee") and Abilities.try_melee(a, now, adeps):
+			vm.melee(Cfg.CLASSES[a.cls].melee, a.melee_def().swing)
+			add_trauma(0.1)
 	revive_held = a.alive and input.act("revive")
 	# interact: grab a zipline in reach (reviving a teammate takes priority)
 	if a.alive and a.zip == null and input.act_pressed("revive") and deps.has("try_zip"):
@@ -310,12 +313,6 @@ func _use_ability(id: String, now: float, adeps: Dictionary) -> void:
 			intent.dash = true
 			if now < a.dash_ready_at and not a.dashing:
 				deny.call("dash")
-		"jab":
-			if Abilities.try_jab(a, now, adeps):
-				vm.punch()
-				add_trauma(0.12)
-			else:
-				deny.call("jab")
 		"grapple":
 			var r = Abilities.try_grapple(a, aim_dir(), now, adeps)
 			if r is bool and r == false:

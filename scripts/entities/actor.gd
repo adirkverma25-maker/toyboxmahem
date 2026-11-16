@@ -98,14 +98,14 @@ var score_at := 0.0
 var abilities: Array = ["dash", "grapple"]
 ## last time this toy attacked (firing or punching breaks cloak)
 var reveal_at := -99.0
-var jab_ready_at := 0.0
+var melee_ready_at := 0.0
 var grapple_ready_at := 0.0
 var cloak_ready_at := 0.0
 var shield_ready_at := 0.0
 var cloaked := false
 var cloak_start := 0.0
 ## seconds left on the punch animation
-var jab_t := 0.0
+var melee_t := 0.0
 ## {anchor, start, check_at, check_dist, climbing} or null
 var grapple = null
 # ---- revive (team modes)
@@ -170,6 +170,11 @@ func set_class(c: String) -> void:
 ## Health after a teammate revives you: 60% of this class's max.
 func revive_health() -> float:
 	return max_health * 0.6
+
+
+## This toy's melee weapon (Cfg.MELEE): a sword for Lights, a spear for Mediums.
+func melee_def() -> Dictionary:
+	return Cfg.MELEE[Cfg.CLASSES[cls].melee]
 
 
 func has(ability: String) -> bool:
@@ -393,7 +398,7 @@ func spawn(at: Vector3, y: float, now: float) -> void:
 	_mantle = null
 	zip = null
 	launched = false
-	jab_t = 0
+	melee_t = 0
 	recent_damage = []
 	health = max_health
 	shield = 0
@@ -712,7 +717,7 @@ func tick(dt: float, now: float) -> void:
 	if now - last_damage_at > Cfg.COMBAT.regenDelay and health < max_health:
 		health = minf(max_health, health + Cfg.COMBAT.regenRate * dt)
 	fire_kick = maxf(0, fire_kick - dt * 6)
-	jab_t = maxf(0, jab_t - dt)
+	melee_t = maxf(0, melee_t - dt)
 	if cloaked and (now - cloak_start >= Cfg.ABILITIES.cloak.maxActive or reveal_at > cloak_start):
 		end_cloak(now)
 	if recent_damage.size() and now - recent_damage[0][0] > 5:

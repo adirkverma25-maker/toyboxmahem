@@ -14,14 +14,15 @@ static func _src(a: Actor):
 	return null if a.is_player else a.chest_pos()
 
 
-## Spring Punch. Returns false if on cooldown.
-static func try_jab(a: Actor, now: float, deps: Dictionary) -> bool:
-	if not a.alive or not a.has("jab") or now < a.jab_ready_at:
+## Melee swing (sword / spear). Returns false while the last swing is still going.
+static func try_melee(a: Actor, now: float, deps: Dictionary) -> bool:
+	if not a.alive or now < a.melee_ready_at or a.grapple != null or a.zip != null:
 		return false
-	a.jab_ready_at = now + Cfg.ABILITIES.jab.cooldown
-	a.jab_t = 0.32
-	var hit = deps.combat.jab(a)
-	deps.audio.punch(hit != null, _src(a))
+	var md := a.melee_def()
+	a.melee_ready_at = now + md.swing
+	a.melee_t = md.swing
+	var hits: Array = deps.combat.melee(a)
+	deps.audio.punch(hits.size() > 0, _src(a))
 	return true
 
 
