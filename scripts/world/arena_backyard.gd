@@ -184,7 +184,7 @@ static func build(root: Node3D, phys: Phys) -> Dictionary:
 				B.box([sx * 4.5 + cos(a) * 1.0 - 0.2, SB.sandY + 4.6, sz * 4 + sin(a) * 1.0 - 0.2], [sx * 4.5 + cos(a) * 1.0 + 0.2, SB.sandY + 4.95, sz * 4 + sin(a) * 1.0 + 0.2], wet_sand, "")
 	for sz in [-1, 1]:
 		for ab in [[-3, -1.2], [1.2, 3]]:
-			B.box([ab[0], CT, sz * 4 - 0.25], [ab[1], CT + 0.85, sz * 4 + 0.25], wet_sand, "carpet")
+			B.breakable_box([ab[0], CT, sz * 4 - 0.25], [ab[1], CT + 0.85, sz * 4 + 0.25], wet_sand, "soft", "castle", "carpet")
 	# bucket and spade
 	B.cyl([7.6, SB.sandY, -6], 1.3, 2.7, blue, "plastic", 20, 1.6)
 	B.geo(Geo.torus(1.6, 0.09, 6, 24, PI), white, [7.6, SB.sandY + 2.7, -6], E(0.5, 0.4, 0))
@@ -242,7 +242,7 @@ static func build(root: Node3D, phys: Phys) -> Dictionary:
 	B.cyl([32, TY, 8], 1.2, 2.2, terracotta, "plastic", 16, 1.5)
 	for k in 5:
 		B.geo(Geo.cone(0.5, 2.6, 5), leaf, [32 + cos(k * 1.3) * 0.6, TY + 3.2, 8 + sin(k * 1.3) * 0.6], E(cos(k) * 0.3, 0, sin(k) * 0.3))
-	B.box([30.6, TY, -8.8], [33.4, TY + 1.9, -6.6], M.cardboard_toys, "cardboard")
+	B.breakable_box([30.6, TY, -8.8], [33.4, TY + 1.9, -6.6], M.cardboard_toys, "soft", "porch", "cardboard")
 
 	# ---------------------------------------------------------------- KIDDIE POOL (SE)
 	var PC := {"x": 20.0, "z": 22.0, "r": 8.5}
@@ -336,6 +336,59 @@ static func build(root: Node3D, phys: Phys) -> Dictionary:
 	B.cyl([-9, 0, 29], 1.4, 2.4, terracotta, "plastic", 16, 1.8)
 	for k in 6:
 		B.geo(Geo.cone(0.6, 3.4, 5), leaf, [-11.5 + cos(k * 1.1) * 0.9, 4.6, 16 + sin(k * 1.1) * 0.9], E(cos(k) * 0.35, 0, sin(k) * 0.35))
+
+	# ---------------------------------------------------------------- GARDEN SHED (NW lawn)
+	# a little toy shed: hard walls in panels you can blow through, a doorway facing the yard, a crate inside
+	if true:
+		# sized and placed so the nav sample grid (-33.2 + 1.6k) has open points inside, clear of the walls
+		var sx0 := -16.8
+		var sx1 := -11.6
+		var sz0 := -19.6
+		var sz1 := -14.4
+		var SH := 3.2
+		var WT := 0.3
+		var shed_m := Mats.textured(siding_texture(), 0.8)
+		var roof_m := Mats.plastic("#3d5a80", {"rough": 0.5})
+		var panels := func(axis: String, a0: float, a1: float, c0: float, c1: float, gaps: Array) -> void:
+			# solid 0.5 m at both ends, ~1.4 m hard panels between, skipping the doorway
+			var org := [a0, 0, c0] if axis == "x" else [c0, 0, a0]
+			var cuts := [[a0 + 0.5, a1 - 0.5]]
+			for g in gaps:
+				var next := []
+				for c in cuts:
+					if g[1] <= c[0] or g[0] >= c[1]:
+						next.append(c)
+					else:
+						if g[0] > c[0]:
+							next.append([c[0], g[0]])
+						if g[1] < c[1]:
+							next.append([g[1], c[1]])
+				cuts = next
+			for e in [[a0, a0 + 0.5], [a1 - 0.5, a1]]:
+				if axis == "x":
+					B.box([e[0], 0, c0], [e[1], SH, c1], shed_m, "wood", {"tile": 1.0 / 3})
+				else:
+					B.box([c0, 0, e[0]], [c1, SH, e[1]], shed_m, "wood", {"tile": 1.0 / 3})
+			for c in cuts:
+				var n := maxi(1, roundi((c[1] - c[0]) / 1.4))
+				var st: float = (c[1] - c[0]) / n
+				for k in n:
+					var q0: float = c[0] + k * st
+					if axis == "x":
+						B.breakable_box([q0, 0, c0], [q0 + st, SH, c1], shed_m, "hard", "shed", "wood", {"uv_origin": org})
+					else:
+						B.breakable_box([c0, 0, q0], [c1, SH, q0 + st], shed_m, "hard", "shed", "wood", {"uv_origin": org})
+		var door := [-18.0, -16.4]  # on the east wall, facing the sandbox
+		panels.call("x", sx0, sx1, sz0, sz0 + WT, [])
+		panels.call("x", sx0, sx1, sz1 - WT, sz1, [])
+		panels.call("z", sz0 + WT, sz1 - WT, sx0, sx0 + WT, [])
+		panels.call("z", sz0 + WT, sz1 - WT, sx1 - WT, sx1, [door])
+		B.box([sx1 - WT, 2.4, door[0]], [sx1, SH, door[1]], shed_m, "wood", {"tile": 1.0 / 3})
+		B.box([sx0 - 0.4, SH, sz0 - 0.4], [sx1 + 0.4, SH + 0.3, sz1 + 0.4], roof_m, "wood", {"round": 0.08})
+		B.box([sx0 + WT, 0, sz0 + WT], [sx1 - WT, 0.04, sz1 - WT], M.block_wood, "", {"tile": 1.0 / 6, "cast": false})
+		B.breakable_box([-10.4, 0, -20.2], [-9.4, 1.0, -19.0], M.cardboard_toys, "soft", "shed-crates", "cardboard")
+		for c in [[-10.6, -15.6], [-19.4, -13.0]]:
+			B.breakable_box([c[0], 0, c[1]], [c[0] + 1.4, 1.4, c[1] + 1.4], M.block_wood, "soft", "yard-crates", "wood", {"round": 0.06})
 
 	# ---------------------------------------------------------------- LAWN PROPS
 	# tree stump with a plank up it (south), soccer ball + skateboard (north), a few rocks

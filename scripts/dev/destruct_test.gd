@@ -28,23 +28,31 @@ static func run(g) -> void:
 		print("[destruct] FAIL: map needs hard and soft pieces")
 		bad += 1
 
-	# a link blocked only by one hard piece, between two open nodes, with a long detour (or none)
+	# a link blocked only by one hard piece, between two open nodes that can reach each other the long way
+	# round: take the one with the longest detour (at least 5 m)
 	var pick := {}
 	var tried := 0
 	for n in nav.nodes:
-		if not pick.is_empty() or tried > 400:
+		if tried > 400:
 			break
 		for l in n.links:
 			var bl = l.get("blockers")
-			if bl == null or bl.size() != 1 or D.pieces[bl[0]].cls != "hard":
+			if bl == null or bl.is_empty() or bl.size() > 2:
+				continue
+			var all_hard := true
+			for b in bl:
+				all_hard = all_hard and D.pieces[b].cls == "hard"
+			if not all_hard:
 				continue
 			if not nav.node_open(n.id) or not nav.node_open(l.to) or l.pad >= 0 or l.zip >= 0:
 				continue
+			# walking through a wall on one level (not a drop out of a window)
+			if absf((n.pos as Vector3).y - (nav.nodes[l.to].pos as Vector3).y) > 0.6:
+				continue
 			tried += 1
 			var before := _length(nav, nav.path(n.id, l.to))
-			if before > 10.0:
-				pick = {"a": n.id, "b": l.to, "piece": bl[0], "before": before}
-				break
+			if before > 5.0 and before < INF and before > pick.get("before", 0.0):
+				pick = {"a": n.id, "b": l.to, "piece": bl[0], "all": Array(bl), "before": before}
 	if pick.is_empty():
 		print("[destruct] FAIL: no hard wall blocks a route")
 		bad += 1
@@ -58,7 +66,11 @@ static func run(g) -> void:
 		if shots != "":
 			# stand back on the open side, crack the panel next to it, look at both
 			var pa0: Actor = g.player.actor
-			var eye_at := Vector3(center.x, a_pos.y, center.z) + normal * 7.0
+			# back off as far as the open space on the near side allows (up to 7 m)
+			var from := Vector3(center.x, a_pos.y + 1.4, center.z) + normal * 0.3
+			var room: float = g.phys.ray_dist(from, normal, 7.5)
+			var back := 7.0 if room == INF else maxf(1.5, room - 0.8)
+			var eye_at := Vector3(center.x, a_pos.y, center.z) + normal * back
 			pa0.teleport(eye_at)
 			var look := (center - pa0.eye_pos()).normalized()
 			pa0.yaw = atan2(-look.x, -look.z)
@@ -71,10 +83,15 @@ static func run(g) -> void:
 				await tree.process_frame
 			g._shot(shots.path_join("destruct_cracked.png"))
 		var blasts := 0
-		while not D.is_broken(pick.piece) and blasts < 6:
-			blasts += 1
-			g.combat.explode(Vector3(center.x, a_pos.y + 1.0, center.z) + normal * 0.25, normal, shell, null)
-			await tree.process_frame
+		for pid in pick.all:
+			var pcc: Dictionary = D.pieces[pid]
+			var cc: Vector3 = (pcc.mn + pcc.mx) / 2
+			var k := 0
+			while not D.is_broken(pid) and k < 6:
+				k += 1
+				g.combat.explode(Vector3(cc.x, a_pos.y + 1.0, cc.z) + normal * 0.25, normal, shell, null)
+				await tree.process_frame
+			blasts = maxi(blasts, k)
 		print("[destruct] hard wall broke after %d crayon blasts" % blasts)
 		if shots != "":
 			for i in 8:
@@ -83,9 +100,10 @@ static func run(g) -> void:
 			for i in 90:
 				await tree.process_frame
 			g._shot(shots.path_join("destruct_hole_settled.png"))
-		if not D.is_broken(pick.piece):
-			print("[destruct] FAIL: wall still standing after 6 blasts")
-			bad += 1
+		for pid in pick.all:
+			if not D.is_broken(pid):
+				print("[destruct] FAIL: wall still standing after 6 blasts")
+				bad += 1
 		var after := _length(nav, nav.path(pick.a, pick.b))
 		print("[destruct] route %.1f m -> %.1f m" % [pick.before, after])
 		if after <= 0.0 or after > 4.0:

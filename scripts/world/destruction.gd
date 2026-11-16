@@ -36,7 +36,9 @@ func _init(p: Phys) -> void:
 
 
 ## opts: round (rounded edges, untextured), tile (texture repeats per metre, default 1/3),
-## uv_origin (Vector3 where the texture starts, so neighbouring panels of one wall line up; default mn)
+## uv_origin (Vector3 where the texture starts, so neighbouring panels of one wall line up; default mn),
+## rests (it sits on the pieces right below it and breaks when any of them does: caps, stacked boxes),
+## studs (pitch: toy-brick studs on top, drawn with the piece)
 func add_piece(mn: Vector3, mx: Vector3, mat: Material, cls: String, group: String, surf: String, opts := {}) -> int:
 	var id := pieces.size()
 	var hp: float = CLASSES[cls].hp
@@ -55,7 +57,8 @@ func add_piece(mn: Vector3, mx: Vector3, mat: Material, cls: String, group: Stri
 	phys.add_child(body)
 	pieces.append({"id": id, "mn": mn, "mx": mx, "mat": mat, "cls": cls, "group": group, "surf": surf,
 		"hp": hp, "max_hp": hp, "broken": false, "body": body,
-		"round": float(opts.get("round", 0.0)), "tile": float(opts.get("tile", 1.0 / 3)), "uv_origin": opts.get("uv_origin", mn)})
+		"round": float(opts.get("round", 0.0)), "tile": float(opts.get("tile", 1.0 / 3)), "uv_origin": opts.get("uv_origin", mn),
+		"rests": bool(opts.get("rests", false)), "studs": float(opts.get("studs", 0.0)), "supports": PackedInt32Array()})
 	if not _groups.has(group):
 		_groups[group] = {"node": null, "ids": []}
 	_groups[group].ids.append(id)
@@ -64,8 +67,23 @@ func add_piece(mn: Vector3, mx: Vector3, mat: Material, cls: String, group: Stri
 
 ## Draw every group (call once after the arena is built).
 func build() -> void:
+	_find_supports()
 	for g in _groups:
 		_rebuild(g)
+
+
+## For every "rests" piece: the pieces whose tops it sits on.
+func _find_supports() -> void:
+	for p in pieces:
+		if not p.rests:
+			continue
+		var sup := PackedInt32Array()
+		for q in pieces:
+			if q.id == p.id or absf(q.mx.y - p.mn.y) > 0.06:
+				continue
+			if q.mx.x > p.mn.x + 0.01 and q.mn.x < p.mx.x - 0.01 and q.mx.z > p.mn.z + 0.01 and q.mn.z < p.mx.z - 0.01:
+				sup.append(q.id)
+		p.supports = sup
 
 
 func is_broken(id: int) -> bool:
@@ -122,6 +140,10 @@ func break_piece(id: int, impulse_dir: Vector3) -> void:
 		on_break_fx.call(id, impulse_dir)
 	if on_break.is_valid():
 		on_break.call(id)
+	# whatever was resting on it comes down too
+	for q in pieces:
+		if q.rests and not q.broken and q.supports.has(id):
+			break_piece(q.id, Vector3.DOWN)
 
 
 ## Hook up break/hit effects: debris chunks, dust, chips, crack marks and sounds (fx / audio may be null).
@@ -302,4 +324,14 @@ func _rebuild(group: String) -> void:
 		else:
 			geo = Geo.box(size.x, size.y, size.z)
 		b.add_at(geo, mat, center)
+		if p.studs > 0:
+			var pitch: float = p.studs
+			var stud := Geo.cylinder(pitch * 0.3, pitch * 0.3, pitch * 0.22, 14)
+			var nx := maxi(1, int(floor(size.x / pitch + 0.001)))
+			var nz := maxi(1, int(floor(size.z / pitch + 0.001)))
+			var ox: float = p.mn.x + (size.x - nx * pitch) / 2.0 + pitch / 2.0
+			var oz: float = p.mn.z + (size.z - nz * pitch) / 2.0 + pitch / 2.0
+			for i in nx:
+				for j in nz:
+					b.add_at(stud, mat, Vector3(ox + i * pitch, p.mx.y + pitch * 0.11, oz + j * pitch))
 	b.build(n)

@@ -111,6 +111,18 @@ func brick(mn: Array, mx: Array, color, surf := "plastic", with_studs := true, p
 		add_studs(mn[0], mx[0], mn[2], mx[2], mx[1], color, pitch)
 
 
+## A toy brick that can break (studs and all). opts as breakable_box (e.g. rests).
+func breakable_brick(mn: Array, mx: Array, color, cls: String, group: String, studs := true, opts := {}) -> int:
+	if destruction == null:
+		brick(mn, mx, color, "plastic", studs)
+		return -1
+	var o := opts.duplicate()
+	o.round = 0.06
+	if studs:
+		o.studs = 0.8
+	return breakable_box(mn, mx, Mats.plastic(color, {"rough": 0.3}), cls, group, "plastic", o)
+
+
 func add_studs(x0: float, x1: float, z0: float, z1: float, y: float, color, pitch := 0.8) -> void:
 	var c := U.col(color)
 	var nx := maxi(1, int(floor((x1 - x0) / pitch + 0.001)))

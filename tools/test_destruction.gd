@@ -151,6 +151,19 @@ func _run() -> void:
 	check(same, "cache_roundtrip_keeps_blockers")
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(nav._cache_path("dtest")))
 
+	# pieces marked "rests" fall with whatever holds them up; plain stacked pieces don't
+	var d6 := await _fresh()
+	var base_p := d6.add_piece(Vector3(0, 0, 0), Vector3(2, 1, 1), mat, "soft", "s", "wood")
+	var top_p := d6.add_piece(Vector3(0.5, 1, 0), Vector3(1.5, 1.6, 1), mat, "soft", "s", "wood", {"rests": true})
+	var cap_p := d6.add_piece(Vector3(0.6, 1.6, 0.2), Vector3(1.4, 2.0, 0.8), mat, "soft", "s", "wood", {"rests": true})
+	var low_p := d6.add_piece(Vector3(4, 0, 0), Vector3(6, 1, 1), mat, "hard", "t", "wood")
+	var band_p := d6.add_piece(Vector3(4, 1, 0), Vector3(6, 2, 1), mat, "hard", "t", "wood")
+	d6.build()
+	d6.break_piece(base_p, Vector3.UP)
+	check(d6.is_broken(top_p) and d6.is_broken(cap_p), "resting_pieces_fall_with_support")
+	d6.break_piece(low_p, Vector3.UP)
+	check(not d6.is_broken(band_p), "stacked_wall_bands_do_not_cascade")
+
 	# break sounds exist for every class
 	var ok := true
 	for c in Destruction.CLASSES:

@@ -235,7 +235,7 @@ static func build(root: Node3D, phys: Phys) -> Dictionary:
 		B.wedge([-9.6, 0, -27], -PI / 2, 9.6, 6, 6, M.blanket, "fabric")
 		B.geo(Geo.capsule(0.45, 5, 6, 16), M.blanket, [-9.4, 0.4, -27], E(PI / 2, 0, 0))
 		# under-bed clutter
-		B.box([-29, 0, -22], [-26, 1.7, -17.5], M.cardboard_shoes, "cardboard", {"round": 0.05})
+		B.breakable_box([-29, 0, -22], [-26, 1.7, -17.5], M.cardboard_shoes, "soft", "bed-clutter", "cardboard", {"round": 0.05})
 		B.box([-23.5, 0, -31], [-21.5, 0.8, -27], M.fabric_b, "fabric", {"round": 0.35})
 		B.geo(Geo.sphere(1.1, 24, 16), _stripe_ball_mat("#ff006e", "#ffbe0b"), [-22.5, 1.1, -16.5])
 		phys.ball(Vector3(-22.5, 1.1, -16.5), 1.1, "plastic")
@@ -323,9 +323,8 @@ static func build(root: Node3D, phys: Phys) -> Dictionary:
 		for i in 4:
 			var h := 0.55 + rnd.next() * 0.2
 			var bm := Mats.textured(Tex.book(book_cols[(i + 3) % 8], pile_titles[i]), 0.6)
-			B.box([28.4 + rnd.next() * 0.3, yy, -31.2 + rnd.next() * 0.3], [31.4 + rnd.next() * 0.3, yy + h, -25.2 - rnd.next() * 0.3], bm, "", {"round": 0.05})
+			B.breakable_box([28.4 + rnd.next() * 0.3, yy, -31.2 + rnd.next() * 0.3], [31.4 + rnd.next() * 0.3, yy + h, -25.2 - rnd.next() * 0.3], bm, "soft", "desk-books", "cardboard", {"round": 0.05, "rests": i > 0})
 			yy += h
-		phys.box(Vector3(29.9, (8 + yy) / 2, -28.2), Vector3(1.6, (yy - 8) / 2, 3.1), "cardboard")
 		# giant pencil lying flat (low cover)
 		B.geo(Geo.cylinder(0.42, 0.42, 8, 6), Mats.plastic("#ffbe0b", {"rough": 0.5}), [21.5, 8.42, -25.4], E(0, 0, PI / 2))
 		B.geo(Geo.cone(0.42, 1.2, 6), M.desk, [26.1, 8.42, -25.4], E(0, 0, -PI / 2))
@@ -371,8 +370,8 @@ static func build(root: Node3D, phys: Phys) -> Dictionary:
 			for l in layers:
 				var inset := (l % 2) * 0.1
 				var mat := M.cardboard_shoes if l % 2 else M.cardboard
-				B.box([x0 + inset, l * lh, z0 + inset], [x1 - inset, (l + 1) * lh - 0.02, z1 - inset], mat, "", {"round": 0.05})
-			phys.box(Vector3((x0 + x1) / 2, h / 2, (z0 + z1) / 2), Vector3((x1 - x0) / 2, h / 2, (z1 - z0) / 2), "cardboard")
+				# each box in the stack breaks on its own; the ones above come down with it
+				B.breakable_box([x0 + inset, l * lh, z0 + inset], [x1 - inset, (l + 1) * lh - 0.02, z1 - inset], mat, "soft", "closet-shoes", "cardboard", {"round": 0.05, "rests": l > 0})
 		shoe.call(23, -18, 24.5, -11, 3.2)
 		shoe.call(24.5, -12.5, 30, -11, 3.2)
 		shoe.call(27, -7.5, 32, -6, 3.2)
@@ -380,8 +379,8 @@ static func build(root: Node3D, phys: Phys) -> Dictionary:
 		shoe.call(24, -1.5, 28.5, 0, 2.6)
 		shoe.call(26, 2.5, 32, 4, 1.25)
 		for bin in [[29.6, -17.6, 32, -13.6, "#7fc8f8"], [20.4, 3, 22.6, 5.8, "#ffafcc"]]:
-			B.box([bin[0], 0, bin[1]], [bin[2], 2.6, bin[3]], Mats.plastic(bin[4], {"rough": 0.15, "clearcoat": 1}), "plastic", {"round": 0.2})
-			B.box([bin[0] - 0.1, 2.6, bin[1] - 0.1], [bin[2] + 0.1, 2.9, bin[3] + 0.1], Mats.plastic("#ffffff", {"rough": 0.3}), "plastic", {"round": 0.1})
+			B.breakable_box([bin[0], 0, bin[1]], [bin[2], 2.6, bin[3]], Mats.plastic(bin[4], {"rough": 0.15, "clearcoat": 1}), "soft", "closet-bins", "plastic", {"round": 0.2})
+			B.breakable_box([bin[0] - 0.1, 2.6, bin[1] - 0.1], [bin[2] + 0.1, 2.9, bin[3] + 0.1], Mats.plastic("#ffffff", {"rough": 0.3}), "soft", "closet-bins", "plastic", {"round": 0.1, "rests": true})
 		B.obox([31, 15.6, -6], [0.25, 0.25, 24], Basis(), Mats.metal("#d0d0d0", 0.2), "")
 		var clothes := [M.fabric_a, M.fabric_b, M.fabric_c, M.fabric_d]
 		for i in 9:
@@ -478,8 +477,20 @@ static func build(root: Node3D, phys: Phys) -> Dictionary:
 			B.brick([-31.5, 0.3 + i, -7.5], [-27.5, 1.3 + i, -3.5], C[i % C.size()], "", i == 6)
 		phys.box(Vector3(-29.5, 3.8, -5.5), Vector3(2, 3.5, 2), "plastic")
 		B.wedge([-30, 0.3, 6], PI, 9.5, 7, 3, Mats.plastic("#f2c12e", {"rough": 0.35}), "plastic")
+		# brick walls: hard panels about 1.6 m wide (studs on top); the pieces over doorways and the battlements
+		# rest on them and come down when a panel under them goes
 		var wall := func(mn: Array, mx: Array, col: String) -> void:
-			B.brick(mn, mx, col, "plastic", true)
+			var along_x: bool = mx[0] - mn[0] >= mx[2] - mn[2]
+			var a0: float = mn[0] if along_x else mn[2]
+			var a1: float = mx[0] if along_x else mx[2]
+			var n := maxi(1, roundi((a1 - a0) / 1.6))
+			var st := (a1 - a0) / n
+			for k in n:
+				var q0 := a0 + k * st
+				var q1 := q0 + st
+				var pmn: Array = [q0, mn[1], mn[2]] if along_x else [mn[0], mn[1], q0]
+				var pmx: Array = [q1, mx[1], mx[2]] if along_x else [mx[0], mx[1], q1]
+				B.breakable_brick(pmn, pmx, col, "hard", "bricks", true, {"rests": mn[1] > 1.0})
 		wall.call([-27.5, 0.3, -5], [-23, 4.3, -3.8], "#bfc5cc")
 		wall.call([-20.5, 0.3, -5], [-16, 4.3, -3.8], "#bfc5cc")
 		wall.call([-23, 2.8, -5], [-20.5, 4.3, -3.8], "#d6342c")
@@ -489,23 +500,23 @@ static func build(root: Node3D, phys: Phys) -> Dictionary:
 		wall.call([-24, 0.3, 6], [-17.2, 2.5, 7.2], "#bfc5cc")
 		var bxx := -27.1
 		while bxx < -16.2:
-			B.brick([bxx, 4.3, -5], [bxx + 0.8, 5.1, -3.8], "#9aa1a9", "plastic", true)
+			B.breakable_brick([bxx, 4.3, -5], [bxx + 0.8, 5.1, -3.8], "#9aa1a9", "hard", "bricks", true, {"rests": true})
 			bxx += 1.6
 		var bzz := -3.4
 		while bzz < 5.8:
-			B.brick([-17.2, 4.3, bzz], [-16, 5.1, bzz + 0.8], "#9aa1a9", "plastic", true)
+			B.breakable_brick([-17.2, 4.3, bzz], [-16, 5.1, bzz + 0.8], "#9aa1a9", "hard", "bricks", true, {"rests": true})
 			bzz += 1.6
-		B.brick([-25, 0.3, 0], [-21, 2.3, 3], "#f08c1f")
-		B.brick([-21, 0.3, 0.4], [-19.8, 1.3, 2.6], "#f2c12e")
+		B.breakable_brick([-25, 0.3, 0], [-21, 2.3, 3], "#f08c1f", "soft", "brick-cover")
+		B.breakable_brick([-21, 0.3, 0.4], [-19.8, 1.3, 2.6], "#f2c12e", "soft", "brick-cover")
 		for i in 9:
 			B.brick([-15, i, 7], [-13, i + 1, 9], C[(i + 2) % C.size()], "", i == 8)
 		phys.box(Vector3(-14, 4.5, 8), Vector3(1, 4.5, 1), "plastic")
 		for i in 6:
 			B.brick([-15, 0.3 + i, -7.5], [-13, 1.3 + i, -5.5], C[(i + 4) % C.size()], "", i == 5)
 		phys.box(Vector3(-14, 3.3, -6.5), Vector3(1, 3, 1), "plastic")
-		B.brick([-14.5, 0, 1], [-12.6, 1.4, 5], "#d6342c")
-		B.brick([-27, 0.3, 8], [-25, 1.7, 9.6], "#1f6fd1")
-		B.brick([-12.5, 0, -10], [-10.5, 1.4, -6], "#f2c12e")
+		B.breakable_brick([-14.5, 0, 1], [-12.6, 1.4, 5], "#d6342c", "soft", "brick-cover")
+		B.breakable_brick([-27, 0.3, 8], [-25, 1.7, 9.6], "#1f6fd1", "soft", "brick-cover")
+		B.breakable_brick([-12.5, 0, -10], [-10.5, 1.4, -6], "#f2c12e", "soft", "brick-cover")
 		_add_sign(root, "BRICK DISTRICT", [-22, 6.6, -5.2], "#d6342c")
 
 	# ---------------------------------------------------------------- loose bricks (dynamic)
