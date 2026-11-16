@@ -131,6 +131,13 @@ func _run() -> void:
 	var a_id := nav.nearest(Vector3(-5, 0, 0), false)
 	var b_id := nav.nearest(Vector3(8, 0, 0), false)
 	check(a_id >= 0 and b_id >= 0 and nav.path(a_id, b_id).is_empty(), "path_blocked_until_broken")
+	var inside_ok := true
+	var saw_blocked := false
+	for n in nav.nodes:
+		if not nav.node_open(n.id):
+			saw_blocked = true
+			inside_ok = inside_ok and not nav.near(n.pos, 0.1).has(n.id)
+	check(saw_blocked and inside_ok, "near_skips_nodes_inside_pieces")
 	d5.break_piece(gap, Vector3.RIGHT)
 	nav.open_piece(gap)
 	var route := nav.path(a_id, b_id)
@@ -163,6 +170,54 @@ func _run() -> void:
 	check(d6.is_broken(top_p) and d6.is_broken(cap_p), "resting_pieces_fall_with_support")
 	d6.break_piece(low_p, Vector3.UP)
 	check(not d6.is_broken(band_p), "stacked_wall_bands_do_not_cascade")
+
+	# review fixes ---------------------------------------------------------------
+	# a lintel over a doorway rests on the panels beside it (nothing below): it falls when one goes
+	var d7 := await _fresh()
+	var left_p := d7.add_piece(Vector3(0, 0, 0), Vector3(1, 3, 0.4), mat, "hard", "w", "wood")
+	var right_p := d7.add_piece(Vector3(2.5, 0, 0), Vector3(3.5, 3, 0.4), mat, "hard", "w", "wood")
+	var lintel_p := d7.add_piece(Vector3(1, 2.2, 0), Vector3(2.5, 3, 0.4), mat, "hard", "w", "wood", {"rests": true})
+	d7.build()
+	d7.break_piece(left_p, Vector3.BACK)
+	check(d7.is_broken(lintel_p) and not d7.is_broken(right_p), "lintel_falls_with_side_support")
+
+	# several breaks in one frame rebuild the group's mesh once, on the next frame
+	var d8 := await _fresh()
+	var ids := []
+	for i in 4:
+		ids.append(d8.add_piece(Vector3(i, 0, 0), Vector3(i + 1, 2, 0.4), mat, "soft", "row", "wood"))
+	d8.build()
+	await get_tree().process_frame
+	var r0: int = d8.rebuilds
+	for id in ids.slice(0, 3):
+		d8.break_piece(id, Vector3.BACK)
+	var immediate: int = d8.rebuilds - r0
+	await get_tree().process_frame
+	check(immediate == 0 and d8.rebuilds - r0 == 1, "group_rebuilt_once_per_frame")
+
+	# guests learn about cracks from the host
+	d8.apply_cracked([ids[3]])
+	check(d8.is_cracked(ids[3]) and not d8.is_broken(ids[3]), "apply_cracked")
+	var cracked_list: Array = []
+	d8.on_crack = func(id: int) -> void: cracked_list.append(id)
+	d8.reset()
+	d8.damage(ids[0], 120, "bullet", Vector3(0.5, 1, 0), Vector3.BACK)
+	check(cracked_list == [ids[0]] and d8.cracked_ids() == PackedInt32Array([ids[0]]), "on_crack_reports_new_cracks")
+
+	# marks on a piece go with it when it breaks (decals are flat quads, they'd hang in the hole)
+	var d9 := await _fresh()
+	var marked := d9.add_piece(Vector3(0, 0, 0), Vector3(2, 3, 0.4), mat, "hard", "m", "wood")
+	d9.build()
+	var fxe := Effects.new()
+	add_child(fxe)
+	d9.fx_hooks(deb, fxe, null)
+	fxe.impacts.add(Vector3(1, 1, 0.4), Vector3.BACK, 0.3, "#000000", 30)
+	fxe.splats.add(Vector3(1, 2, 0.4), Vector3.BACK, 1.0, "#ff0000", 30)
+	fxe.impacts.add(Vector3(6, 1, 0.4), Vector3.BACK, 0.3, "#000000", 30)
+	var box := AABB(Vector3(-0.2, -0.2, -0.2), Vector3(2.4, 3.4, 0.8))
+	d9.break_piece(marked, Vector3.BACK)
+	check(fxe.impacts.count_in(box) == 0 and fxe.splats.count_in(box) == 0 and fxe.impacts.count_in(AABB(Vector3(5, 0, 0), Vector3(2, 2, 1))) == 1, "marks_cleared_on_break")
+	deb.clear()
 
 	# break sounds exist for every class
 	var ok := true

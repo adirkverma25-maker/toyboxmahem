@@ -152,6 +152,9 @@ func _init_game() -> void:
 	r.world.add_child(debris)
 	destruction.fx_hooks(debris, fx, audio)
 	destruction.on_break = _on_piece_broken
+	destruction.on_crack = func(id: int) -> void:
+		if host:
+			host.piece_cracked(id)
 	pickups = Pickups.new(spots, fx, audio, events)
 	r.world.add_child(pickups)
 	match_ = Match.new(phys, spawn_points)
@@ -676,13 +679,13 @@ func _register_events() -> void:
 
 
 # ------------------------------------------------------------------ match lifecycle
-## A wall or prop broke: routes through it open and bots re-plan.
+## A wall or prop broke: routes through it open (bots re-plan on their next think), arrows in it fall out.
 func _on_piece_broken(id: int) -> void:
 	nav.open_piece(id)
+	var p: Dictionary = destruction.pieces[id]
+	combat.clear_stuck_in(AABB(p.mn, p.mx - p.mn).grow(0.6))
 	if host:
 		host.piece_broken(id)
-	for b in bots:
-		b.repath_soon()
 
 
 func _clear_match() -> void:
@@ -2056,6 +2059,7 @@ func _online_test(role_arg: String, m: String, secs: float, shots: String) -> vo
 		obj += "%s:%d " % [sec.def.name.substr(0, 6), sec.owner]
 	print("[online] %s: team scores %s %s" % [role, str(match_.team_scores.map(func(x): return snappedf(x, 0.1))), obj])
 	print("[online] %s: broken %s" % [role, str(Array(destruction.broken_ids()))])
+	print("[online] %s: cracked %s" % [role, str(Array(destruction.cracked_ids()))])
 	if host:
 		print("[online] host: applied %d guest states, %d hit claims, %d replayed shots" % [host.stats.states, host.stats.claims, host.stats.shots])
 		print("[online] host: applied %d piece claims, ignored %d stale ones" % [host.stats.get("pieces", 0), host.stats.get("stale_pieces", 0)])

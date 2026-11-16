@@ -111,6 +111,8 @@ func _on_host_msg(m: Dictionary, _from: String) -> void:
 			_apply_host_state(m)
 			if m.has("bk"):
 				g.destruction.apply_broken(m.bk)
+			if m.has("ck"):
+				g.destruction.apply_cracked(m.ck)
 		"ev":
 			var ev: Dictionary = m.ev
 			if started():
@@ -200,6 +202,7 @@ func _on_event(ev: Dictionary) -> void:
 			g.block_drop_at((ev.spots as Array).map(func(p): return Snapshot.vec(p)))
 		"break":
 			g.destruction.apply_broken(ev.ids)
+			g.destruction.apply_cracked(ev.get("cracked", []))
 
 
 ## Every guest frame: place everyone else, send our own state.

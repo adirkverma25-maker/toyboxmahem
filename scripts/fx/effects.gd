@@ -330,6 +330,27 @@ class DecalPool:
 			return Basis() if d.z > 0 else Basis(Vector3.UP, PI)
 		return Basis(c.normalized(), z.angle_to(d))
 
+	## live marks whose centre is inside `box`
+	func count_in(box: AABB) -> int:
+		var c := 0
+		for i in n:
+			if life[i] > 0 and box.has_point(Vector3(buf[i * 20 + 3], buf[i * 20 + 7], buf[i * 20 + 11])):
+				c += 1
+		return c
+
+	## remove the marks inside `box` (the surface they were on is gone)
+	func clear_in(box: AABB) -> void:
+		var any := false
+		for i in n:
+			if life[i] > 0 and box.has_point(Vector3(buf[i * 20 + 3], buf[i * 20 + 7], buf[i * 20 + 11])):
+				life[i] = 0
+				for k in 12:
+					buf[i * 20 + k] = 0
+				alive -= 1
+				any = true
+		if any:
+			mm.buffer = buf
+
 	func update(dt: float) -> void:
 		if alive <= 0:
 			return

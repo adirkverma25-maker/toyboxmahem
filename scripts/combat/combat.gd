@@ -602,6 +602,27 @@ func explode(point: Vector3, normal: Vector3, p: Dictionary, direct) -> void:
 	events.emit("explosion", {"pos": center, "radius": ex.radius})
 
 
+## Arrows stuck inside `box` (their middle point).
+func stuck_in(box: AABB) -> int:
+	var c := 0
+	for i in STUCK:
+		if _stuck_life[i] > 0 and box.has_point(Vector3(_stuck_buf[i * 16 + 3], _stuck_buf[i * 16 + 7], _stuck_buf[i * 16 + 11])):
+			c += 1
+	return c
+
+
+## The wall these arrows were stuck in is gone: drop them.
+func clear_stuck_in(box: AABB) -> void:
+	var any := false
+	for i in STUCK:
+		if _stuck_life[i] > 0 and box.has_point(Vector3(_stuck_buf[i * 16 + 3], _stuck_buf[i * 16 + 7], _stuck_buf[i * 16 + 11])):
+			_stuck_life[i] = 0
+			_hide(_stuck_buf, i)
+			any = true
+	if any:
+		_stuck.buffer = _stuck_buf
+
+
 func _stick_arrow(point: Vector3, d: Vector3, color: String) -> void:
 	var i := _stuck_next
 	_stuck_next = (_stuck_next + 1) % STUCK

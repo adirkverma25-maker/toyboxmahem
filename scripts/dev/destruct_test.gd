@@ -27,6 +27,21 @@ static func run(g) -> void:
 	if count.hard == 0 or count.soft == 0:
 		print("[destruct] FAIL: map needs hard and soft pieces")
 		bad += 1
+	# nothing the game depends on may stand on a breakable piece: objectives, jump pads, zip ends
+	var spots := []
+	for s in Modes.HILL_SITES:
+		spots.append([s.name, s.pos])
+	for pd in g.map.pads:
+		spots.append(["pad", pd.pos])
+		spots.append(["pad landing", pd.to])
+	for z in g.map.zips:
+		spots.append(["zip end", z.a])
+		spots.append(["zip end", z.b])
+	for sp in spots:
+		var h: Dictionary = g.phys.raycast(sp[1] + Vector3(0, 2.5, 0), Vector3.DOWN, 5.0)
+		if not h.is_empty() and D.piece_of(h.collider) >= 0:
+			print("[destruct] FAIL: %s at %s stands on breakable piece %d" % [sp[0], sp[1], D.piece_of(h.collider)])
+			bad += 1
 
 	# a link blocked only by one hard piece, between two open nodes that can reach each other the long way
 	# round: take the one with the longest detour (at least 5 m)
@@ -82,6 +97,9 @@ static func run(g) -> void:
 			for i in 20:
 				await tree.process_frame
 			g._shot(shots.path_join("destruct_cracked.png"))
+		# an arrow stuck in the wall has to go when the wall does
+		var wall_box := AABB(pc.mn, pc.mx - pc.mn).grow(0.6)
+		g.combat._stick_arrow(Vector3(center.x, a_pos.y + 1.2, center.z) + normal * 0.3, -normal, "#ffffff")
 		var blasts := 0
 		for pid in pick.all:
 			var pcc: Dictionary = D.pieces[pid]
@@ -104,6 +122,9 @@ static func run(g) -> void:
 			if not D.is_broken(pid):
 				print("[destruct] FAIL: wall still standing after 6 blasts")
 				bad += 1
+		if g.combat.stuck_in(wall_box) > 0:
+			print("[destruct] FAIL: an arrow is left hanging where the wall was")
+			bad += 1
 		var after := _length(nav, nav.path(pick.a, pick.b))
 		print("[destruct] route %.1f m -> %.1f m" % [pick.before, after])
 		if after <= 0.0 or after > 4.0:

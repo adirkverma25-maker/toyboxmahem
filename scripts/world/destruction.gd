@@ -17,12 +17,17 @@ var phys: Phys
 var pieces: Array = []
 ## (id: int) after a piece breaks
 var on_break := Callable()
+## (id: int) when a piece first shows cracks (the host tells guests)
+var on_crack := Callable()
+## how many group meshes have been rebuilt (dev tests)
+var rebuilds := 0
 ## (id: int, impulse_dir: Vector3) break effects (debris, dust, sound)
 var on_break_fx := Callable()
 ## (id: int, point: Vector3, normal: Vector3, cracked_now: bool) hit effects
 var on_hit_fx := Callable()
 
 var _groups := {}  # group -> {node: Node3D, ids: Array}
+var _dirty := {}  # groups to redraw at the end of this frame (many pieces can go in one blast)
 var _dark := {}  # Material -> darker twin for cracked pieces
 
 
@@ -66,6 +71,7 @@ func build() -> void:
 	_find_supports()
 	for g in _groups:
 		_rebuild(g)
+	_dirty.clear()
 
 
 ## For every "rests" piece: the pieces whose tops it sits on.
@@ -79,6 +85,15 @@ func _find_supports() -> void:
 				continue
 			if q.mx.x > p.mn.x + 0.01 and q.mn.x < p.mx.x - 0.01 and q.mx.z > p.mn.z + 0.01 and q.mn.z < p.mx.z - 0.01:
 				sup.append(q.id)
+		if sup.is_empty():
+			# nothing underneath (a lintel over a doorway): it hangs on the pieces either side of it
+			for q in pieces:
+				if q.id == p.id or q.mx.y < p.mn.y + 0.05 or q.mn.y > p.mx.y - 0.05:
+					continue
+				var touch_x: bool = (absf(q.mx.x - p.mn.x) < 0.06 or absf(q.mn.x - p.mx.x) < 0.06) and q.mx.z > p.mn.z + 0.01 and q.mn.z < p.mx.z - 0.01
+				var touch_z: bool = (absf(q.mx.z - p.mn.z) < 0.06 or absf(q.mn.z - p.mx.z) < 0.06) and q.mx.x > p.mn.x + 0.01 and q.mn.x < p.mx.x - 0.01
+				if touch_x or touch_z:
+					sup.append(q.id)
 		p.supports = sup
 
 
@@ -110,7 +125,9 @@ func damage(id: int, amount: float, kind: String, point: Vector3, normal: Vector
 		return true
 	var cracked_now := is_cracked(id) and not was_cracked
 	if cracked_now:
-		_rebuild(p.group)
+		_dirty[p.group] = true
+		if on_crack.is_valid():
+			on_crack.call(id)
 	if on_hit_fx.is_valid():
 		on_hit_fx.call(id, point, normal, cracked_now)
 	return false
@@ -125,7 +142,7 @@ func break_piece(id: int, impulse_dir: Vector3) -> void:
 	var body: StaticBody3D = p.body
 	body.collision_layer = 0
 	body.process_mode = Node.PROCESS_MODE_DISABLED
-	_rebuild(p.group)
+	_dirty[p.group] = true
 	if on_break_fx.is_valid():
 		on_break_fx.call(id, impulse_dir)
 	if on_break.is_valid():
@@ -144,6 +161,11 @@ func fx_hooks(debris: Debris, fx: Effects, audio: AudioEngine) -> void:
 		var center: Vector3 = (p.mn + p.mx) / 2
 		if debris:
 			debris.burst(p.mn, p.mx, c, p.cls, dir)
+		if fx:
+			# bullet holes, paint and crack marks are flat quads on the surface: they go with it
+			var box := AABB(p.mn, p.mx - p.mn).grow(0.12)
+			fx.impacts.clear_in(box)
+			fx.splats.clear_in(box)
 		if fx:
 			var ext: Vector3 = p.mx - p.mn
 			for i in (4 if p.cls == "glass" else 9):
@@ -167,6 +189,31 @@ static func _color_of(mat: Material) -> Color:
 	if mat is BaseMaterial3D:
 		return (mat as BaseMaterial3D).albedo_color
 	return Color(0.8, 0.8, 0.8)
+
+
+func cracked_ids() -> PackedInt32Array:
+	var out := PackedInt32Array()
+	for p in pieces:
+		if is_cracked(p.id):
+			out.append(p.id)
+	return out
+
+
+## Show cracks on these pieces (host -> guest; guests never learn exact HP).
+func apply_cracked(ids: Array) -> void:
+	for i in ids:
+		var id := int(i)
+		if id >= 0 and id < pieces.size() and not pieces[id].broken and not is_cracked(id):
+			pieces[id].hp = minf(pieces[id].hp, pieces[id].max_hp * CRACKED)
+			_dirty[pieces[id].group] = true
+
+
+func _process(_dt: float) -> void:
+	if _dirty.is_empty():
+		return
+	for g in _dirty:
+		_rebuild(g)
+	_dirty.clear()
 
 
 func broken_ids() -> PackedInt32Array:
@@ -197,7 +244,7 @@ func reset() -> void:
 		body.collision_layer = Phys.WORLD | Phys.PIECE
 		body.process_mode = Node.PROCESS_MODE_INHERIT
 	for g in dirty:
-		_rebuild(g)
+		_dirty[g] = true
 
 
 ## Chips and dust where a hit landed, without any damage (shots replayed for the looks, guests' own hits).
@@ -301,6 +348,7 @@ static func _world_uv_box(size: Vector3, center: Vector3, origin: Vector3, tile:
 
 
 func _rebuild(group: String) -> void:
+	rebuilds += 1
 	var g: Dictionary = _groups[group]
 	if g.node:
 		(g.node as Node).queue_free()

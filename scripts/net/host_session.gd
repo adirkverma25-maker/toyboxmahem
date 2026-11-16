@@ -19,8 +19,9 @@ var ready_maps := {}
 var stats := {"states": 0, "claims": 0, "shots": 0}
 var _snap_at := 0.0
 var _tick := 0
-## pieces broken since the last snapshot (sent as one "break" event)
+## pieces broken / newly cracked since the last snapshot (sent as one "break" event)
 var _broken_queue: Array = []
+var _cracked_queue: Array = []
 var _disposed := false
 
 
@@ -296,6 +297,12 @@ func piece_broken(id: int) -> void:
 		_broken_queue.append(id)
 
 
+## A piece started showing cracks here: guests show them too.
+func piece_cracked(id: int) -> void:
+	if live():
+		_cracked_queue.append(id)
+
+
 ## A guest's own attack hit a breakable piece. Unknown or already-broken pieces are ignored.
 func _on_piece_claim(m: Dictionary) -> void:
 	var D: Destruction = g.destruction
@@ -315,9 +322,10 @@ func update(real_now: float) -> void:
 		return
 	_snap_at = real_now + 1000.0 / net.TICK_RATE
 	_tick += 1
-	if _broken_queue.size():
-		send_ev({"e": "break", "ids": _broken_queue})
+	if _broken_queue.size() or _cracked_queue.size():
+		send_ev({"e": "break", "ids": _broken_queue, "cracked": _cracked_queue})
 		_broken_queue = []
+		_cracked_queue = []
 	var packed := []
 	for a in g.actors:
 		packed.append(Snapshot.pack_actor(a, g.time))
@@ -326,6 +334,7 @@ func update(real_now: float) -> void:
 	# every 2 s the whole list of broken pieces, so a missed event can't leave a guest with a wall the host lost
 	if _tick % (net.TICK_RATE * 2) == 0:
 		snap.bk = Array(g.destruction.broken_ids())
+		snap.ck = Array(g.destruction.cracked_ids())
 	net.send_game(snap)
 
 

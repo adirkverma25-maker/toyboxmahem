@@ -75,6 +75,8 @@ var _reaction_until := 0.0
 var _heard = null
 var _path: Array = []
 var _path_idx := 0
+## the nav revision this bot last planned against (a wall broke since -> plan again)
+var _nav_rev := 0
 var _goal := Vector3.ZERO
 var _has_goal := false
 var _think_at := randf() * 0.2
@@ -788,6 +790,10 @@ func update(dt: float, now: float) -> void:
 	_think_at -= dt
 	if _think_at <= 0:
 		_think_at = U.rand(0.12, 0.2)
+		var nr: int = w.nav.revision
+		if nr != _nav_rev:
+			_nav_rev = nr
+			repath_soon()
 		_think(now)
 	# after a Spring Hook the old path is useless
 	if _was_grappling and a.grapple == null:

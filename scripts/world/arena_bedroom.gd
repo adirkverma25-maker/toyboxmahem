@@ -506,8 +506,9 @@ static func build(root: Node3D, phys: Phys) -> Dictionary:
 		while bzz < 5.8:
 			B.breakable_brick([-17.2, 4.3, bzz], [-16, 5.1, bzz + 0.8], "#9aa1a9", "hard", "bricks", true, {"rests": true})
 			bzz += 1.6
-		B.breakable_brick([-25, 0.3, 0], [-21, 2.3, 3], "#f08c1f", "soft", "brick-cover")
-		B.breakable_brick([-21, 0.3, 0.4], [-19.8, 1.3, 2.6], "#f2c12e", "soft", "brick-cover")
+		# the Brick District objective stands on these two: they stay solid
+		B.brick([-25, 0.3, 0], [-21, 2.3, 3], "#f08c1f")
+		B.brick([-21, 0.3, 0.4], [-19.8, 1.3, 2.6], "#f2c12e")
 		for i in 9:
 			B.brick([-15, i, 7], [-13, i + 1, 9], C[(i + 2) % C.size()], "", i == 8)
 		phys.box(Vector3(-14, 4.5, 8), Vector3(1, 4.5, 1), "plastic")

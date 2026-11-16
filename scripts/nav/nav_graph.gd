@@ -239,7 +239,7 @@ func _key(x: float, z: float) -> Vector2i:
 	return Vector2i(floori(x / _cell), floori(z / _cell))
 
 
-## Node ids whose XZ is within r of p.
+## Node ids whose XZ is within r of p (not ones inside a standing breakable piece).
 func near(p: Vector3, r: float) -> Array:
 	var out := []
 	var x0 := floori((p.x - r) / _cell)
@@ -253,7 +253,7 @@ func near(p: Vector3, r: float) -> Array:
 				continue
 			for id in l:
 				var np: Vector3 = nodes[id].pos
-				if (np.x - p.x) * (np.x - p.x) + (np.z - p.z) * (np.z - p.z) <= r * r:
+				if (np.x - p.x) * (np.x - p.x) + (np.z - p.z) * (np.z - p.z) <= r * r and node_open(id):
 					out.append(id)
 	return out
 
