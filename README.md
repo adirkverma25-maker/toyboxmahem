@@ -6,6 +6,8 @@ A first-person arena shooter where living toys battle across a kid's bedroom, th
 
 **[⬇ Download for Windows (ToyboxMayhem-Setup.exe)](https://github.com/adirkverma25-maker/toyboxmahem/releases/latest/download/ToyboxMayhem-Setup.exe)**
 
+**[⬇ Download for Mac (ToyboxMayhem-mac.zip)](https://github.com/adirkverma25-maker/toyboxmahem/releases/latest/download/ToyboxMayhem-mac.zip)**
+
 ## Install
 
 You need Windows 10 or 11 (64-bit) and about 150 MB of space.
@@ -20,6 +22,17 @@ You need Windows 10 or 11 (64-bit) and about 150 MB of space.
 **Updating:** download the latest Setup.exe and run it. It installs over the old version and keeps your progress.
 
 **Uninstalling:** go to Windows **Settings → Apps → Installed apps**, find **Toybox Mayhem**, then **Uninstall**. Your progress is kept in `%APPDATA%\Godot\app_userdata\Toybox Mayhem`. Delete that folder too if you want a completely fresh start.
+
+### Mac
+
+Works on Intel and Apple Silicon Macs (macOS 11 or newer).
+
+1. Download **ToyboxMayhem-mac.zip** from the link above and double-click it to unzip.
+2. Drag **Toybox Mayhem** into your **Applications** folder.
+3. The first time, **right-click** (or Control-click) the app and choose **Open**, then **Open** again. The game isn't signed with a paid Apple certificate, so a normal double-click is blocked.
+   - If macOS says the app is "damaged", open **Terminal** and run `xattr -cr "/Applications/Toybox Mayhem.app"`, then try again.
+
+Your progress is kept in `~/Library/Application Support/Godot/app_userdata/Toybox Mayhem`.
 
 ## Play with friends online
 
