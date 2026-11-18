@@ -4,7 +4,7 @@ extends Node3D
 ## (port of src/combat/Combat.ts, solo/host path).
 ## Events: damage, kill, shot, explosion, hit (see Game for the payload keys).
 
-const PROJ_POOL := {"dart": 140, "bubble": 160, "crayon": 20, "bolt": 120, "arrow": 40, "slug": 40, "grenade": 24, "mine": 32}
+const PROJ_POOL := {"dart": 140, "bubble": 160, "crayon": 20, "bolt": 120, "arrow": 40, "slug": 40, "grenade": 24, "mine": 32, "drill": 8}
 const STUCK := 40
 const PAINT := ["#ef476f", "#ffd166", "#06d6a0", "#118ab2", "#8338ec", "#ff8c42"]
 
@@ -27,6 +27,10 @@ var on_piece_claim := Callable()
 var on_gadget := Callable()
 ## burning patches left by pyro gadgets: {pos, r, dps, until, shooter, auth, tick, wid}
 var _fires: Array = []
+## placed gadgets: {kind, owner, auth, until, node, body, pos, yaw, next_shot, head}
+var _deployed: Array = []
+## guest: (target: Actor, amount: float) its own Health Infuser healed someone (the host applies it)
+var on_heal_claim := Callable()
 var _projectiles: Array = []
 var _mm := {}  # visual -> MultiMesh
 var _buf := {}  # visual -> PackedFloat32Array
@@ -122,6 +126,7 @@ func _init(p: Phys, effects: Effects, aud, ev: Emitter, actor_list: Callable, lo
 		# gadgets: a round toy grenade and a flat disc mine (its axis follows the surface it sticks to)
 		"grenade": Geo.sphere(0.13, 12, 9).to_mesh(white_std.call(0.45)),
 		"mine": Geo.cylinder(0.2, 0.22, 0.09, 16).rotate_basis(Basis(Vector3.RIGHT, PI / 2)).to_mesh(white_std.call(0.4)),
+		"drill": Geo.cone(0.09, 0.5, 8).rotate_basis(Basis(Vector3.RIGHT, -PI / 2)).to_mesh(white_std.call(0.35)),
 	}
 	for k in PROJ_POOL:
 		_mm[k] = _make_mm(meshes[k], PROJ_POOL[k], k != "bolt" and k != "bubble" and k != "slug")
@@ -430,6 +435,7 @@ func _spawn_projectile(shooter: Actor, cfg: Dictionary, origin: Vector3, d: Vect
 func update(dt: float) -> void:
 	barriers.update(dt, now)
 	_update_fires(dt)
+	_update_deployed(dt)
 	# arrows stuck in walls fade away
 	var stuck_dirty := false
 	var stuck_top := 0
@@ -457,7 +463,12 @@ func update(dt: float) -> void:
 			p.life -= dt
 			p.arm -= dt
 			var boom: bool = p.life <= 0
-			if p.arm <= 0 and not boom and p.shooter:
+			if p.cfg.has("drill"):
+				# drilling: sparks, then the blast
+				boom = boom or p.arm <= 0
+				if randf() < 0.6:
+					fx.glow.emit(p.pos + p.normal * 0.1, p.normal * U.rand(1, 3) + Vector3(U.rand(-1.5, 1.5), U.rand(0, 2), U.rand(-1.5, 1.5)), U.col(U.pick(["#ffd23f", "#ffb347", "#ffffff"])), U.rand(0.06, 0.12), U.rand(0.15, 0.3), {"gravity": 8})
+			elif p.arm <= 0 and not boom and p.shooter:
 				for o in actors.call():
 					if o.alive and o != p.shooter and p.shooter.is_enemy(o) and (o.pos + Vector3(0, 0.6, 0)).distance_to(p.pos) < p.cfg.mine.trigger:
 						boom = true
@@ -470,7 +481,8 @@ func update(dt: float) -> void:
 				continue
 			var blink := 1.0 if p.arm <= 0 and fmod(now, 1.0) < 0.12 else 0.0
 			_color(buf, p.idx, U.col(p.color).lerp(Color("#ff4d6d"), blink))
-			_write(buf, p.idx, Transform3D(_face(p.normal), p.pos))
+			var spin := Basis(Vector3.FORWARD, now * 25.0) if p.cfg.has("drill") else Basis()
+			_write(buf, p.idx, Transform3D(_face(-p.normal if p.cfg.has("drill") else p.normal) * spin, p.pos))
 			top[p.visual] = maxi(top.get(p.visual, 0), p.idx + 1)
 			continue
 		p.prev = p.pos
@@ -489,7 +501,7 @@ func update(dt: float) -> void:
 			var prev: Vector3 = p.prev
 			var world := phys.raycast(prev, d, seg_len + p.radius)
 			var wt: float = world.dist if not world.is_empty() else INF
-			var hit := {} if cfg.has("mine") else _trace_actors(prev, d, minf(seg_len, wt), p.shooter, p.radius, p.hits)
+			var hit := {} if cfg.has("mine") or cfg.has("drill") else _trace_actors(prev, d, minf(seg_len, wt), p.shooter, p.radius, p.hits)
 			var shield := barriers.trace(prev, d, minf(minf(seg_len + p.radius, wt), hit.t if not hit.is_empty() else INF), p.shooter)
 			if not shield.is_empty():
 				var point: Vector3 = prev + d * shield.t
@@ -520,22 +532,16 @@ func update(dt: float) -> void:
 					if p.visual == "arrow" and p.charge > 0.85:
 						_kick(target, d.x * 2.5, d.y * 2.5, d.z * 2.5)
 				done = true
-			elif not world.is_empty() and cfg.has("mine"):
-				# a mine sticks where it lands
-				p.pos = world.point + world.normal * 0.05
+			elif not world.is_empty() and (cfg.has("mine") or cfg.has("drill")):
+				# a mine sticks where it lands; a drill bites into what it hits
+				p.pos = world.point + world.normal * (0.05 if cfg.has("mine") else -0.1)
 				p.normal = world.normal
 				p.vel = Vector3.ZERO
 				p.stuck = true
-				p.arm = cfg.mine.arm
-				p.life = cfg.mine.life
-			elif not world.is_empty() and cfg.has("mine"):
-				# a mine sticks where it lands
-				p.pos = world.point + world.normal * 0.05
-				p.normal = world.normal
-				p.vel = Vector3.ZERO
-				p.stuck = true
-				p.arm = cfg.mine.arm
-				p.life = cfg.mine.life
+				p.arm = cfg.drill.delay if cfg.has("drill") else cfg.mine.arm
+				p.life = cfg.drill.delay + 0.5 if cfg.has("drill") else cfg.mine.life
+				if cfg.has("drill"):
+					audio.impact("metal", p.pos, 1.5)
 			elif not world.is_empty():
 				p.pos = world.point
 				if cfg.has("explosion"):
@@ -567,7 +573,7 @@ func update(dt: float) -> void:
 		if not done and p.life <= 0:
 			if p.visual == "bubble":
 				fx.bubble_burst(p.pos, p.color)
-			if cfg.has("explosion") and not cfg.has("mine"):
+			if cfg.has("explosion") and not cfg.has("mine") and not cfg.has("drill"):
 				explode(p.pos, Vector3.UP, p, null)
 			done = true
 		if p.whistle:
@@ -608,8 +614,12 @@ func explode(point: Vector3, normal: Vector3, p: Dictionary, direct) -> void:
 	var center := point + normal * 0.25
 	var gadget: bool = p.cfg.get("gadget", false)
 	var colors := ["#ffb347", "#ff6b2b", "#fff1c1", "#4a4a4a"] if gadget else [p.color, U.pick(PAINT), U.pick(PAINT), "#ffffff"]
+	if ex.has("glitch"):
+		colors = ["#b388ff", "#4cc9f0", "#ffffff", "#7b2cbf"]
+	elif ex.has("flash"):
+		colors = ["#ffffff", "#fff8d6", "#ffffff", "#d0d0d0"]
 	fx.explosion(center, normal, colors, reduced_motion)
-	if gadget:
+	if gadget and not ex.has("glitch") and not ex.has("flash"):
 		fx.impacts.add(point, normal, ex.radius * 0.45, "#1b1b1b", 20, 0.8)  # scorch mark
 	else:
 		fx.paint_splat(point, normal, p.color, 2.6)
@@ -652,6 +662,11 @@ func explode(point: Vector3, normal: Vector3, p: Dictionary, direct) -> void:
 		var push := Vector3(h.x - center.x, 0.6, h.z - center.z).normalized() * (6 * f)
 		_kick(a, push.x, push.y, push.z)
 	events.emit("explosion", {"pos": center, "radius": ex.radius})
+	if ex.has("flash"):
+		_flash_from(center, ex.flash.radius, shooter, "flashbang", true)
+	if ex.has("flashThrough"):
+		# the breach drill: the blast goes through the wall and flashes whoever is on the other side
+		_flash_from(point - normal * 1.2, ex.flashThrough.radius, shooter, "drillFlash", false)
 	if ex.has("fire"):
 		var f: Dictionary = ex.fire
 		var ground := phys.raycast(center, Vector3.DOWN, 3.0, true)
@@ -670,6 +685,12 @@ func throw_gadget(shooter: Actor, gid: String, origin: Vector3, dir: Vector3, au
 	if auth != "visual" and on_gadget.is_valid():
 		on_gadget.call(shooter, gid, origin, dir)
 	shooter.reveal_at = now
+	if cfg.has("deploy"):
+		_deploy(shooter, gid, origin, dir, auth)
+		return
+	if cfg.has("heal"):
+		heal_burst(shooter, auth)
+		return
 	if cfg.has("mine"):
 		# only so many mines out at once: the oldest one goes
 		var mine := []
@@ -686,6 +707,143 @@ func throw_gadget(shooter: Actor, gid: String, origin: Vector3, dir: Vector3, au
 	_auth = auth
 	_spawn_projectile(shooter, cfg, origin, dir, origin, 1.0, 1.0, auth)
 	_auth = "full"
+
+
+## A blinding pop at `at`: enemies within r who can see it are flashed (a 2-point hit carries it, so it goes
+## through claims online like any hit). `need_look`: only if they're facing it.
+func _flash_from(at: Vector3, r: float, shooter: Actor, wid: String, need_look: bool) -> void:
+	fx.glow.emit(at, Vector3.ZERO, Color.WHITE, 9.0, 0.18)
+	fx.flash_light(at, "#ffffff", 140, 0.25, r * 1.5)
+	audio.zap(at)
+	for a in actors.call():
+		if not a.alive or a == shooter or not shooter.is_enemy(a):
+			continue
+		var eye: Vector3 = a.eye_pos()
+		if eye.distance_to(at) > r or not phys.los(at, eye, true):
+			continue
+		if need_look and a.forward().dot((at - eye).normalized()) < -0.2:
+			continue  # looking away
+		apply_damage(a, shooter, 2.0, false, eye, wid, (eye - at).normalized())
+
+
+## Health Infuser: heal the user and teammates close by (guests' heals go to the host as claims).
+func heal_burst(healer: Actor, auth := "full") -> void:
+	var cfg: Dictionary = Cfg.GADGETS.healthInfuser
+	var c := healer.chest_pos()
+	for i in 24:
+		var a := randf() * TAU
+		fx.glow.emit(c + Vector3(cos(a), U.rand(-0.6, 0.6), sin(a)) * U.rand(0.3, 1.2), Vector3(0, U.rand(1, 3), 0), U.col(U.pick(["#7dff6b", "#ffffff", "#2dc653"])), U.rand(0.12, 0.25), U.rand(0.4, 0.8), {"gravity": -1, "drag": 2})
+	audio.pickup("health", c, healer.is_player)
+	if auth == "visual":
+		return
+	for a in actors.call():
+		if not a.alive:
+			continue
+		if a != healer and (healer.team < 0 or a.team != healer.team or a.pos.distance_to(healer.pos) > cfg.radius):
+			continue
+		if auth == "claims":
+			if on_heal_claim.is_valid():
+				on_heal_claim.call(a, cfg.heal)
+		else:
+			a.health = minf(a.max_health, a.health + cfg.heal)
+
+
+## Place a stairs / turret gadget a step in front of where it was thrown from.
+func _deploy(owner: Actor, gid: String, origin: Vector3, dir: Vector3, auth: String) -> void:
+	var cfg: Dictionary = Cfg.GADGETS[gid]
+	# one of each per toy: the old one folds away
+	for d in _deployed.duplicate():
+		if d.owner == owner and d.kind == cfg.deploy:
+			_undeploy(d)
+	var flat := Vector3(dir.x, 0, dir.z)
+	flat = flat.normalized() if flat.length() > 0.01 else Vector3.FORWARD
+	var at := origin + flat * (1.0 if cfg.deploy == "stairs" else 1.6)
+	var ground := phys.raycast(at + Vector3(0, 0.5, 0), Vector3.DOWN, 6.0, true)
+	if not ground.is_empty():
+		at = ground.point
+	var yaw := atan2(-flat.x, -flat.z)
+	var node := Node3D.new()
+	node.transform = Transform3D(Basis(Vector3.UP, yaw), at)
+	add_child(node)
+	var body := StaticBody3D.new()
+	body.collision_layer = Phys.WORLD
+	body.collision_mask = 0
+	body.set_meta("mat", "plastic")
+	node.add_child(body)
+	var d := {"kind": cfg.deploy, "owner": owner, "auth": auth, "until": now + cfg.life, "node": node, "body": body, "pos": at, "yaw": yaw, "next_shot": now + 0.8, "head": null}
+	if cfg.deploy == "stairs":
+		var a := Mats.plastic(cfg.colors.main, {"rough": 0.4})
+		var b := Mats.plastic(cfg.colors.accent, {"rough": 0.4})
+		for i in int(cfg.steps):
+			var h: float = cfg.rise * (i + 1)
+			var z: float = -cfg.run * (i + 0.5)
+			var size := Vector3(cfg.width, h, cfg.run)
+			node.add_child(Geo.rounded_box(size.x, size.y, size.z, 2, 0.04).mesh_instance(a if i % 2 == 0 else b, Vector3(0, h / 2, z), Basis(), true))
+			var cs := CollisionShape3D.new()
+			var sh := BoxShape3D.new()
+			sh.size = size
+			cs.shape = sh
+			cs.position = Vector3(0, h / 2, z)
+			body.add_child(cs)
+	else:
+		var dark := Mats.plastic(cfg.colors.main, {"rough": 0.4})
+		var gold := Mats.plastic(cfg.colors.accent, {"rough": 0.3})
+		node.add_child(Geo.cylinder(0.32, 0.4, 0.5, 14).mesh_instance(dark, Vector3(0, 0.25, 0), Basis(), true))
+		var head := Node3D.new()
+		head.position = Vector3(0, 0.75, 0)
+		head.add_child(Geo.rounded_box(0.45, 0.32, 0.5, 2, 0.08).mesh_instance(gold, Vector3.ZERO, Basis(), true))
+		head.add_child(Geo.cylinder(0.05, 0.05, 0.5, 8).mesh_instance(dark, Vector3(0, 0, -0.42), Basis(Vector3.RIGHT, PI / 2), true))
+		node.add_child(head)
+		d.head = head
+		var cs := CollisionShape3D.new()
+		var sh := BoxShape3D.new()
+		sh.size = Vector3(0.7, 1.0, 0.7)
+		cs.shape = sh
+		cs.position = Vector3(0, 0.5, 0)
+		body.add_child(cs)
+	_deployed.append(d)
+	audio.punch(true, at)
+
+
+func _undeploy(d: Dictionary) -> void:
+	_deployed.erase(d)
+	fx.reassemble(d.pos + Vector3(0, -0.5, 0), ["#ffd23f", "#3a86ff"])
+	(d.node as Node).queue_free()
+
+
+## Turrets look for the nearest enemy they can see and shoot it; everything folds away when its time is up.
+func _update_deployed(_dt: float) -> void:
+	for d in _deployed.duplicate():
+		if now >= d.until or d.owner == null:
+			_undeploy(d)
+			continue
+		if d.kind != "turret" or now < d.next_shot:
+			continue
+		var cfg: Dictionary = Cfg.GADGETS.turret
+		var muzzle: Vector3 = (d.pos as Vector3) + Vector3(0, 0.8, 0)
+		var best: Actor = null
+		var bd: float = cfg.range
+		for a in actors.call():
+			if not a.alive or a.cloaked or not d.owner.is_enemy(a):
+				continue
+			var dist := muzzle.distance_to(a.chest_pos())
+			if dist < bd and phys.los(muzzle, a.chest_pos(), true):
+				bd = dist
+				best = a
+		if best == null:
+			d.next_shot = now + 0.25
+			continue
+		var to := best.chest_pos() - muzzle
+		(d.head as Node3D).rotation = Vector3(atan2(to.y, Vector2(to.x, to.z).length()), atan2(-to.x, -to.z) - float(d.yaw), 0)
+		d.next_shot = now + float(cfg.interval)
+		var dir := U.cone_direction(to.normalized(), deg_to_rad(cfg.spreadDeg))
+		_auth = d.auth
+		_hitscan(d.owner, cfg.gun, muzzle + to.normalized() * 0.5, dir, muzzle + to.normalized() * 0.6, 1.0)
+		_auth = "full"
+		_flush_claims()
+		fx.muzzle(muzzle + to.normalized() * 0.6, to.normalized(), "#ffd23f", 0.6)
+		if randf() < 0.5:
+			audio.gunshot("rapidRascal", muzzle, false)
 
 
 ## Burning patches: flames, and damage four times a second to enemies standing in them.
@@ -840,6 +998,12 @@ func apply_damage(target: Actor, attacker, amount: float, head: bool, point: Vec
 	target.health -= amount - shield_dmg
 	target.last_damage_at = now
 	target.last_damage_weapon = weapon
+	if weapon == "glitchJug":
+		target.glitched_until = now + float(Cfg.GADGETS.glitchJug.explosion.glitch)
+	if weapon == "flashbang" or weapon == "drillFlash":
+		var fl: Dictionary = Cfg.GADGETS.flashbang.explosion.flash if weapon == "flashbang" else Cfg.GADGETS.breachDrill.explosion.flashThrough
+		target.flash_len = float(fl.time)
+		target.flashed_until = maxf(target.flashed_until, now + float(fl.time))
 	target.recent_damage.append([now, amount])
 	target.hit_flinch = minf(1, target.hit_flinch + 0.6)
 	if attacker and attacker != target:
@@ -908,6 +1072,9 @@ func _eliminate(victim: Actor, killer, weapon: String, head: bool) -> void:
 func clear() -> void:
 	barriers.clear()
 	_fires.clear()
+	for d in _deployed.duplicate():
+		(d.node as Node).queue_free()
+	_deployed.clear()
 	_stuck_life.fill(0)
 	for i in STUCK:
 		_hide(_stuck_buf, i)

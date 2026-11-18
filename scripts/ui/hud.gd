@@ -4,11 +4,12 @@ extends Control
 ## weapon + ammo, abilities, timer and scores, kill feed, announcements, death screen, scoreboard, team tags,
 ## objective markers. Corner panels scale like the original's CSS zoom; screen-space marks stay pixel-sized.
 
-const ABIL_UI := [["dash", "Dash"], ["grapple", "Hook"], ["cloak", "Cloak"], ["shield", "Shield"], ["fragGrenade", "Frag"], ["pyroGrenade", "Pyro"], ["explosiveMine", "Mine"], ["pyroMine", "Fire Mine"]]
+const ABIL_UI := [["dash", "Dash"], ["grapple", "Hook"], ["cloak", "Cloak"], ["shield", "Shield"], ["fragGrenade", "Frag"], ["pyroGrenade", "Pyro"], ["explosiveMine", "Mine"], ["pyroMine", "Fire Mine"], ["glitchJug", "Glitch"], ["stairs", "Stairs"], ["turret", "Turret"], ["healthInfuser", "Heal"], ["breachDrill", "Drill"], ["flashbang", "Flash"]]
 const STREAKS := {2: "Double pop!", 3: "Triple pop!", 4: "Toy box tantrum!", 5: "Unstoppable toy!", 7: "Playroom legend!", 10: "Toy of the year!"}
 const FX_SHADER := preload("res://shaders/hud_fx.gdshader")
 
 var fx_rect := ColorRect.new()
+var flash_rect := ColorRect.new()
 var fx_mat := ShaderMaterial.new()
 var overlay := Overlay.new()
 var panels := Control.new()
@@ -102,6 +103,11 @@ func _init() -> void:
 	panels.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(panels)
 	_build_panels()
+	# flashbang white-out, over everything
+	flash_rect.color = Color(1, 1, 1, 0)
+	flash_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	flash_rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(flash_rect)
 	for i in 32:
 		nums.append({"pos": Vector3.ZERO, "life": 0.0, "drift": 0.0, "text": "", "kind": "body"})
 	for i in 6:
@@ -573,6 +579,9 @@ static func _board_row(cells: Array, me: bool, head: bool, dot: String) -> Contr
 func update(dt: float, now: float, p: Player, actors: Array, m: Match, cam: Camera3D, zone_name: String) -> void:
 	clock += dt
 	var a := p.actor
+	# flashed: full white, fading out over the last second or so
+	var fl := a.flashed_until - now if a.alive else 0.0
+	flash_rect.color.a = clampf(fl / minf(1.2, maxf(0.3, a.flash_len * 0.5)), 0.0, 1.0) if fl > 0 else 0.0
 	fps_acc += dt
 	fps_frames += 1
 	if fps_acc > 0.5:

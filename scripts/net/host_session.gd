@@ -232,6 +232,13 @@ func _on_guest_msg(m: Dictionary, from: String) -> void:
 			var ev := s.duplicate()
 			ev.e = "shot"
 			send_ev(ev)
+		"gheal":
+			var hi := int(m.get("target", -1))
+			if hi < 0 or hi >= g.actors.size():
+				return
+			var ht: Actor = g.actors[hi]
+			if ht.alive and (ht == a or (a.team >= 0 and ht.team == a.team and ht.pos.distance_to(a.pos) < 9.0)):
+				ht.health = minf(ht.max_health, ht.health + clampf(float(m.get("amount", 0)), 0, Cfg.GADGETS.healthInfuser.heal))
 		"ggadget":
 			var gs: Dictionary = m.s
 			if int(gs.seat) != r.seat:

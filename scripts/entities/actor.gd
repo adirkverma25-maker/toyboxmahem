@@ -113,6 +113,11 @@ var gadget := ""
 var gadget_ready_at := 0.0
 ## the weapon id of the last hit this toy took (bots flinch harder at melee)
 var last_damage_weapon := ""
+## hit by a Glitch Jug: no abilities or gadgets until then
+var glitched_until := 0.0
+## flashed (Flashbang / Breach Drill): white screen / blind until then, and how long it was (for the fade)
+var flashed_until := 0.0
+var flash_len := 1.0
 ## {anchor, start, check_at, check_dist, climbing} or null
 var grapple = null
 # ---- revive (team modes)
@@ -184,7 +189,17 @@ func melee_def() -> Dictionary:
 	return Cfg.MELEE[Cfg.CLASSES[cls].melee]
 
 
+func is_glitched() -> bool:
+	return glitched_until > _glitch_clock
+
+
+## game time, kept by tick() so is_glitched() needs no clock passed in
+var _glitch_clock := 0.0
+
+
 func has(ability: String) -> bool:
+	if glitched_until > _glitch_clock:
+		return false  # glitched: no abilities
 	return abilities.has(ability)
 
 
@@ -407,6 +422,8 @@ func spawn(at: Vector3, y: float, now: float) -> void:
 	launched = false
 	melee_t = 0
 	gadget_ready_at = 0.0
+	glitched_until = 0.0
+	flashed_until = 0.0
 	recent_damage = []
 	health = max_health
 	shield = 0
@@ -720,6 +737,7 @@ func move(intent: Intent, dt: float, now: float, ev: Dictionary = {}) -> void:
 
 ## Called every frame for regen, buffs, timers.
 func tick(dt: float, now: float) -> void:
+	_glitch_clock = now
 	if not alive:
 		return
 	if now - last_damage_at > Cfg.COMBAT.regenDelay and health < max_health:

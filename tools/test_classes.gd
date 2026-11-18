@@ -35,17 +35,17 @@ func _run() -> void:
 	var L: Dictionary = Cfg.CLASSES.light
 	var M: Dictionary = Cfg.CLASSES.medium
 	check(Cfg.CLASS_ORDER == ["light", "medium"]
-		and L.guns == ["foamFury", "rapidRascal", "bubbleBlaster", "thunderspring", "plungerBow", "starlightZapper", "plasti9"]
-		and M.guns == ["brickbreaker", "popcornPopper", "crayonCannon", "jackBlaster", "walloper"]
+		and L.guns == ["rapidRascal", "bubbleBlaster", "thunderspring", "plungerBow", "starlightZapper", "plasti9"]
+		and M.guns == ["foamFury", "brickbreaker", "popcornPopper", "crayonCannon", "jackBlaster", "walloper"]
 		and L.abilities == ["dash", "grapple"] and M.abilities == ["shield", "cloak"]
-		and L.gadgets == ["glitchJug", "stairs", "fragGrenade", "pyroGrenade"]
+		and L.gadgets == ["glitchJug", "stairs", "fragGrenade", "pyroGrenade", "flashbang"]
 		and M.gadgets == ["turret", "healthInfuser", "breachDrill", "explosiveMine", "pyroMine"]
 		and L.health == 100.0 and M.health == 150.0 and L.speed == 1.1 and M.speed == 0.9, "class_tables_match_spec")
 	check(not L.abilities.has("cloak") and not M.abilities.has("dash") and not M.abilities.has("grapple") and not M.gadgets.has("fragGrenade") and not M.gadgets.has("pyroGrenade"), "medium_never_moves_or_throws")
 	var one := true
 	for wid in Cfg.WEAPON_ORDER:
 		one = one and int(L.guns.has(wid)) + int(M.guns.has(wid)) == 1
-	check(one and Cfg.class_of_gun("walloper") == "medium" and Cfg.class_of_gun("foamFury") == "light", "every_gun_in_exactly_one_class")
+	check(one and Cfg.class_of_gun("walloper") == "medium" and Cfg.class_of_gun("foamFury") == "medium" and Cfg.class_of_gun("plasti9") == "light", "every_gun_in_exactly_one_class")
 
 	var a := _actor()
 	a.set_class("medium")

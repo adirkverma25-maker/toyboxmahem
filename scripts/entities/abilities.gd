@@ -25,7 +25,7 @@ static func gadget_throw(a: Actor) -> Array:
 
 ## Throw / place the gadget along your aim. Returns false while it's recharging.
 static func try_gadget(a: Actor, now: float, deps: Dictionary) -> bool:
-	if not a.alive or a.gadget == "" or not Cfg.GADGETS.has(a.gadget) or now < a.gadget_ready_at:
+	if not a.alive or a.gadget == "" or not Cfg.GADGETS.has(a.gadget) or now < a.gadget_ready_at or a.glitched_until > now:
 		return false
 	var g: Dictionary = Cfg.GADGETS[a.gadget]
 	a.gadget_ready_at = now + g.cooldown

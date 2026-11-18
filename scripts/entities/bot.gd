@@ -24,9 +24,9 @@ const PERSONALITIES := {
 }
 
 const DIFFICULTY := {
-	"easy": {"reaction": 0.85, "aimError": 7.0, "turn": 180.0, "view": 42.0, "fov": 100.0, "recoilComp": 0.2, "fireAngle": 7.0, "burst": 0.45, "headshot": 0.03, "hearing": 22.0},
-	"normal": {"reaction": 0.52, "aimError": 3.9, "turn": 300.0, "view": 62.0, "fov": 115.0, "recoilComp": 0.5, "fireAngle": 5.0, "burst": 0.7, "headshot": 0.1, "hearing": 32.0},
-	"hard": {"reaction": 0.32, "aimError": 2.1, "turn": 480.0, "view": 85.0, "fov": 125.0, "recoilComp": 0.75, "fireAngle": 3.5, "burst": 0.95, "headshot": 0.2, "hearing": 42.0},
+	"easy": {"reaction": 0.9, "aimError": 9.5, "turn": 170.0, "view": 42.0, "fov": 100.0, "recoilComp": 0.15, "fireAngle": 8.0, "burst": 0.4, "headshot": 0.0, "hearing": 22.0},
+	"normal": {"reaction": 0.55, "aimError": 5.4, "turn": 280.0, "view": 62.0, "fov": 115.0, "recoilComp": 0.4, "fireAngle": 6.0, "burst": 0.65, "headshot": 0.04, "hearing": 32.0},
+	"hard": {"reaction": 0.34, "aimError": 3.2, "turn": 440.0, "view": 85.0, "fov": 125.0, "recoilComp": 0.65, "fireAngle": 4.5, "burst": 0.9, "headshot": 0.1, "hearing": 42.0},
 }
 
 
@@ -255,6 +255,10 @@ func _set_state(s: String, now: float) -> void:
 # ------------------------------------------------------------------ perception
 func _perceive(now: float) -> void:
 	var a := actor
+	if a.flashed_until > now:
+		# blinded: can't pick anyone out
+		_target_visible = false
+		return
 	var d := diff()
 	var eye := a.eye_pos()
 	var fwd := Vector3(-sin(a.yaw), 0, -cos(a.yaw))
@@ -528,6 +532,14 @@ func _use_abilities(now: float) -> void:
 			if gc.has("mine"):
 				if state == "retreat" or role == "holder" or dist < 9:
 					Abilities.try_gadget(a, now, deps)
+			elif gc.has("heal"):
+				if a.health < a.max_health * 0.6:
+					Abilities.try_gadget(a, now, deps)
+			elif gc.get("deploy", "") == "turret":
+				if dist > 8 and dist < 26:
+					Abilities.try_gadget(a, now, deps)
+			elif gc.has("deploy"):
+				pass  # stairs: bots don't plan climbs
 			elif dist > 7 and dist < 24 and facing > 0.9:
 				Abilities.try_gadget(a, now, deps)
 		if now >= _ability_check_at:
@@ -1053,7 +1065,7 @@ func _aim(dt: float, now: float, moving: bool) -> void:
 	if t == null or ws == null:
 		return
 	# aim point: chest or head, with lead for projectile weapons
-	var aim_pt := t.head_pos() if _aim_head else t.chest_pos()
+	var aim_pt := t.head_pos() if _aim_head else t.chest_pos() - Vector3(0, 0.18, 0)
 	if not _target_visible:
 		aim_pt = _last_known + Vector3(0, 1.1, 0)
 	var eye := a.eye_pos()
@@ -1069,8 +1081,8 @@ func _aim(dt: float, now: float, moving: bool) -> void:
 	if now > _aim_noise_at:
 		_aim_noise_at = now + U.rand(0.18, 0.4)
 		var err: float = d.aimError * (1 + (0.5 if moving else 0.0) + clampf(t.speed / 8, 0, 1) * 0.6) * (1.6 if now < _reaction_until + 0.4 else 1.0)
-		err *= (2.4 if now < _shaky_until else 1.0) * (1.7 if t.melee_held else 1.0)
-		_aim_noise_target = Vector2(U.rand(-err, err), U.rand(-err, err) * 0.7)
+		err *= (2.4 if now < _shaky_until else 1.0) * (1.7 if t.melee_held else 1.0) * (4.0 if actor.flashed_until > now else 1.0)
+		_aim_noise_target = Vector2(U.rand(-err, err), U.rand(-err, err * 0.35))
 	_aim_noise = _aim_noise.lerp(_aim_noise_target, 1 - exp(-6 * dt))
 	var to := aim_pt - eye
 	var want_yaw := atan2(-to.x, -to.z) + deg_to_rad(_aim_noise.x)
@@ -1136,7 +1148,7 @@ func fire(now: float) -> int:
 	var muzzle := muzzle_world()
 	for i in res:
 		var dir := a.forward()
-		var spread := ws.spread(0.85 if ws.overlay() else 0.3, clampf(a.speed / 5.5, 0, 1.3), not a.grounded)
+		var spread := ws.spread(0.85 if ws.overlay() else 0.3, clampf(a.speed / 5.5, 0, 1.3), not a.grounded) * 1.4 + 0.6
 		w.combat.fire(a, ws, eye, dir, muzzle, spread)
 		ws.kick(false)
 		a.fire_kick = 1

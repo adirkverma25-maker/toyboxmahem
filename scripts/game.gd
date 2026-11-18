@@ -915,6 +915,7 @@ func _make_player() -> Actor:
 			return true,
 		"teammates": func(): return actors.filter(func(o): return o != pa and o.alive and o.team == pa.team) if pa.team >= 0 else [],
 		"aim_targets": func(): return actors.filter(func(o): return o != pa and o.alive and (pa.team < 0 or o.team != pa.team)),
+		"announce": func(t: String, sub: String) -> void: hud.announce(t, sub, 1.6),
 	})
 	return pa
 
@@ -1414,7 +1415,7 @@ func _player_input(dt: float, now: float, frozen: bool, blocked := false) -> voi
 		return
 	if not frozen:
 		pl.update(dt, now)
-		if pl.gadget_aiming and pl.actor.alive:
+		if pl.gadget_aiming and pl.actor.alive and Cfg.GADGETS.get(pl.actor.gadget, {}).has("projectile"):
 			var th := Abilities.gadget_throw(pl.actor)
 			grenade_arc.show_arc(phys, pl.actor.gadget, th[0], th[1])
 		else:

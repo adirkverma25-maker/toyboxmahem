@@ -41,6 +41,7 @@ var spectating: Actor = null
 var revive_held := false
 ## the gadget key is held: showing the throw arc, it's thrown on release
 var gadget_aiming := false
+var was_glitched := false
 ## last ability that failed because it was cooling down (HUD flashes it)
 var denied := {"key": "", "at": -9.0}
 
@@ -280,10 +281,20 @@ func update(dt: float, now: float) -> void:
 			_use_ability(a.abilities[0], now, adeps)
 		# gadget: hold to aim (the arc and landing ring show), let go to throw
 		if input.act_pressed("gadget"):
-			if a.gadget != "" and now >= a.gadget_ready_at:
+			if a.gadget != "" and now >= a.gadget_ready_at and a.glitched_until <= now:
 				gadget_aiming = true
 			elif a.gadget != "":
 				denied = {"key": a.gadget, "at": now}
+		if input.act_pressed("ability1") and a.glitched_until > now:
+			denied = {"key": a.abilities[0] if a.abilities.size() else "", "at": now}
+		# glitched: the screen shudders until it wears off
+		if a.glitched_until > now:
+			add_trauma(0.035)
+			if not was_glitched:
+				deps.audio.zap(a.chest_pos())
+				if deps.has("announce"):
+					deps.announce.call("GLITCHED", "No abilities or gadgets for a few seconds")
+		was_glitched = a.glitched_until > now
 		if gadget_aiming and not input.act("gadget"):
 			gadget_aiming = false
 			if Abilities.try_gadget(a, now, adeps):

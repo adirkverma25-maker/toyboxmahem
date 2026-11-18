@@ -15,7 +15,7 @@ static func _prog() -> Node:
 
 ## Default picks per class (free starter blasters only).
 const DEFAULTS := {
-	"light": {"gun": "foamFury", "abilities": ["dash"], "gadget": "fragGrenade"},
+	"light": {"gun": "plasti9", "abilities": ["dash"], "gadget": "fragGrenade"},
 	"medium": {"gun": "jackBlaster", "abilities": ["shield"], "gadget": "explosiveMine"},
 }
 

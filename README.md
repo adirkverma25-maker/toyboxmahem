@@ -38,10 +38,21 @@ Walls, cover and glass can be shot and blown apart: blast your own way into a bu
 
 Pick a class in **Loadout**:
 
-- **Light:** 100 health and faster. Blasters: Foam Fury, Rapid Rascal, Bubble Blaster, Thunderspring, Plunger Longbow, Starlight Zapper, Plasti-9. Ability: Wind-Up Dash or Spring Hook. Gadget: Frag Grenade or Pyro Grenade. Or take the Toy Sword instead of a blaster.
-- **Medium:** 150 health but slower. Blasters: Brickbreaker, Popcorn Popper, Crayon Cannon, Jack-in-the-Blaster, Walloper. Ability: Mesh Shield or Cloak. Gadget: Explosive Mine or Pyro Mine. Or take the Toy Spear instead of a blaster.
+- **Light:** 100 health and faster. Blasters: Rapid Rascal, Bubble Blaster, Thunderspring, Plunger Longbow, Starlight Zapper, Plasti-9, or the Toy Sword instead. Ability: Wind-Up Dash or Spring Hook. Gadget: Frag Grenade, Pyro Grenade, Flashbang, Glitch Jug or Pop-up Stairs.
+- **Medium:** 150 health but slower. Blasters: Foam Fury, Brickbreaker, Popcorn Popper, Crayon Cannon, Jack-in-the-Blaster, Walloper, or the Toy Spear instead. Ability: Mesh Shield or Cloak. Gadget: Explosive Mine, Pyro Mine, Turret, Health Infuser or Breach Drill.
 
-Each class has its own gadgets too; they arrive in the next update.
+You carry one weapon, one ability and one gadget.
+
+**Gadgets:**
+
+- **Frag Grenade / Explosive Mine:** big blast that blows a hole in the wall it hits.
+- **Pyro Grenade / Pyro Mine:** leaves the ground burning.
+- **Flashbang:** whites out the screen of every enemy who sees it.
+- **Glitch Jug:** zaps enemies so they can't use abilities or gadgets for a few seconds, and shakes their screen.
+- **Pop-up Stairs:** a staircase to climb onto things.
+- **Turret:** shoots at enemies nearby.
+- **Health Infuser:** heals you and teammates close by.
+- **Breach Drill:** drills into a wall, blasts it open and flashes whoever is on the other side.
 
 - **Free-for-All:** everyone for themselves. First to 30 pops wins.
 - **Team Deathmatch:** 4 v 4, first team to 50.

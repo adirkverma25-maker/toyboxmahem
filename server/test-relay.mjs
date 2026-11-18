@@ -1,7 +1,7 @@
 // Checks a running relay: node test-relay.mjs [ws://127.0.0.1:8787]
 // Host + two guests join a room, messages route the right way, errors and host-leaving work.
 const base = (process.argv[2] || 'ws://127.0.0.1:8787').replace(/\/+$/, '');
-const V = 105;
+const V = 107;
 const room = 'T' + Math.random().toString(36).slice(2, 7).toUpperCase();
 
 function client(role, name, code = room) {

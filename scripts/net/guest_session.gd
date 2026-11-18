@@ -30,6 +30,7 @@ func _init(game) -> void:
 	g.combat.on_shield = _on_shield
 	g.combat.on_piece_claim = _on_piece_claim
 	g.combat.on_gadget = _on_gadget
+	g.combat.on_heal_claim = _on_heal_claim
 
 
 func started() -> bool:
@@ -65,6 +66,12 @@ func _on_fire(shooter: Actor, ws: WeaponState, origin: Vector3, dir: Vector3, mu
 func _on_shield(a: Actor, yaw: float) -> void:
 	if g.player and a == g.player.actor:
 		net.send_game({"g": "gability", "a": {"seat": local_seat, "id": "shield", "yaw": Snapshot.r3(yaw)}})
+
+
+func _on_heal_claim(target: Actor, amount: float) -> void:
+	var ti: int = g.actors.find(target)
+	if ti >= 0:
+		net.send_game({"g": "gheal", "target": ti, "amount": Snapshot.r2(amount)})
 
 
 func _on_gadget(shooter: Actor, gid: String, origin: Vector3, dir: Vector3) -> void:
@@ -269,5 +276,6 @@ func dispose() -> void:
 	c.on_shield = Callable()
 	c.on_piece_claim = Callable()
 	c.on_gadget = Callable()
+	c.on_heal_claim = Callable()
 	if net.on_game == Callable(self, "_on_host_msg"):
 		net.on_game = Callable()
