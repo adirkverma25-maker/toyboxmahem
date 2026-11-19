@@ -306,13 +306,13 @@ const MOVE := {
 const CLASSES := {
 	"light": {
 		"name": "Light", "health": 100.0, "speed": 1.1, "melee": "sword",
-		"guns": ["rapidRascal", "bubbleBlaster", "thunderspring", "plungerBow", "starlightZapper", "plasti9", "tumbleweed", "slingshot"],
+		"guns": ["rapidRascal", "bubbleBlaster", "thunderspring", "plungerBow", "starlightZapper", "plasti9", "tumbleweed"],
 		"abilities": ["dash", "grapple"],
 		"gadgets": ["glitchJug", "stairs", "fragGrenade", "pyroGrenade", "flashbang", "launchPad"],
 	},
 	"medium": {
 		"name": "Medium", "health": 150.0, "speed": 0.9, "melee": "spear",
-		"guns": ["foamFury", "brickbreaker", "popcornPopper", "crayonCannon", "jackBlaster", "walloper", "sizzler"],
+		"guns": ["foamFury", "brickbreaker", "popcornPopper", "crayonCannon", "jackBlaster", "walloper", "sizzler", "slingshot"],
 		"abilities": ["shield", "cloak"],
 		"gadgets": ["turret", "healthInfuser", "breachDrill", "explosiveMine", "pyroMine"],
 	},
