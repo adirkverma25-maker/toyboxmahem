@@ -5,13 +5,13 @@ extends RefCounted
 
 ## Timeline of reload sounds/animation beats, as fractions of the reload.
 const RELOAD_BEATS := {
-	"plasti9": [[0.12, "out"], [0.55, "in"], [0.82, "charge"]],
-	"foamFury": [[0.12, "out"], [0.5, "in"], [0.78, "charge"]],
-	"brickbreaker": [[0.15, "out"], [0.52, "in"], [0.8, "charge"]],
+	"plasti9": [[0.12, "out"], [0.3, "drop"], [0.55, "in"], [0.82, "charge"]],
+	"foamFury": [[0.12, "out"], [0.3, "drop"], [0.5, "in"], [0.78, "charge"]],
+	"brickbreaker": [[0.15, "out"], [0.32, "drop"], [0.52, "in"], [0.8, "charge"]],
 	"thunderspring": [[0.1, "out"], [0.4, "in"], [0.62, "spring"]],
-	"rapidRascal": [[0.14, "out"], [0.55, "in"], [0.85, "charge"]],
+	"rapidRascal": [[0.14, "out"], [0.32, "drop"], [0.55, "in"], [0.85, "charge"]],
 	"crayonCannon": [[0.15, "out"], [0.55, "in"], [0.82, "charge"]],
-	"jackBlaster": [[0.12, "open"], [0.45, "in"], [0.75, "spring"], [0.92, "close"]],
+	"jackBlaster": [[0.12, "out"], [0.3, "drop"], [0.5, "in"], [0.8, "charge"]],
 	"plungerBow": [[0.15, "out"], [0.55, "in"], [0.85, "charge"]],
 	"popcornPopper": [[0.12, "out"], [0.52, "in"], [0.8, "charge"]],
 	"walloper": [[0.12, "out"], [0.5, "in"], [0.82, "charge"]],
@@ -36,6 +36,20 @@ var lockout := false
 var equip_t := 0.0
 ## charge weapons (bow): time the draw started, -1 when not drawing
 var draw_start := -1.0
+## per-shell reloads: "open" (hand to the shells), "shells" (one going in), "close"
+func shell_phase() -> String:
+	return _shell_phase if reloading and cfg.has("reloadPerShell") else ""
+
+
+## 0..1 through the current shell being pushed in (1 = it's in)
+func shell_t() -> float:
+	if _shell_phase == "shells":
+		return clampf(1 - _shell_timer / float(cfg.reloadPerShell), 0, 1)
+	if _shell_phase == "open":
+		return clampf(1 - _shell_timer / 0.25, 0, 1)
+	return clampf(1 - _shell_timer / 0.3, 0, 1)
+
+
 ## charge (0..1) of the shot that was just released
 var last_charge := 1.0
 var on_reload_beat := Callable()

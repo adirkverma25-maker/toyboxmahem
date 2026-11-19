@@ -254,6 +254,8 @@ func update(dt: float, now: float) -> void:
 				recoil_yaw += k.y
 				vm.on_fire(cw.id, a.ads > 0.5, reduced)
 				audio.gunshot(cw.id, eye, true)
+				if cw.cfg.has("casing") and randf() < 0.7:
+					audio.casing(cw.cfg.casing)
 				if cw.id == "thunderspring":
 					Engine.get_main_loop().create_timer(0.28).timeout.connect(func(): audio.spring_wind(null, true))
 				add_trauma(cw.cfg.kick.shake * 0.6)

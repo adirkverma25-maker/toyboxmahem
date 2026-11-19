@@ -4,7 +4,7 @@ extends Node3D
 ## (port of src/combat/Combat.ts, solo/host path).
 ## Events: damage, kill, shot, explosion, hit (see Game for the payload keys).
 
-const PROJ_POOL := {"dart": 140, "bubble": 160, "crayon": 20, "bolt": 120, "arrow": 40, "slug": 40, "grenade": 24, "mine": 32, "drill": 8}
+const PROJ_POOL := {"dart": 140, "bubble": 160, "crayon": 20, "bolt": 120, "arrow": 40, "slug": 40, "bullet": 64, "grenade": 24, "mine": 32, "drill": 8}
 const STUCK := 40
 const PAINT := ["#ef476f", "#ffd166", "#06d6a0", "#118ab2", "#8338ec", "#ff8c42"]
 
@@ -56,6 +56,9 @@ var on_fire := Callable()
 var on_shield := Callable()
 ## authority of whatever is being resolved right now
 var _auth := "full"
+## Sizzler burns: {target, shooter, left, next, started}; ticks run where damage is real (host / offline)
+var _burns: Array = []
+var _burn_tick := false
 var _pending := {}
 
 
@@ -123,13 +126,15 @@ func _init(p: Phys, effects: Effects, aud, ev: Emitter, actor_list: Callable, lo
 		"arrow": arrow_geo.to_mesh(white_std.call(0.5, "#ff4d6d", 0.15)),
 		# sniper round: a thin bright streak (stretched along its flight)
 		"slug": Geo.capsule(0.025, 0.3, 3, 6).rotate_basis(Basis(Vector3.RIGHT, PI / 2)).to_mesh(bolt_mat),
+		# turret round: a short glowing tracer
+		"bullet": Geo.capsule(0.022, 0.2, 3, 6).rotate_basis(Basis(Vector3.RIGHT, PI / 2)).to_mesh(bolt_mat),
 		# gadgets: a round toy grenade and a flat disc mine (its axis follows the surface it sticks to)
 		"grenade": Geo.sphere(0.13, 12, 9).to_mesh(white_std.call(0.45)),
 		"mine": Geo.cylinder(0.2, 0.22, 0.09, 16).rotate_basis(Basis(Vector3.RIGHT, PI / 2)).to_mesh(white_std.call(0.4)),
 		"drill": Geo.cone(0.09, 0.5, 8).rotate_basis(Basis(Vector3.RIGHT, -PI / 2)).to_mesh(white_std.call(0.35)),
 	}
 	for k in PROJ_POOL:
-		_mm[k] = _make_mm(meshes[k], PROJ_POOL[k], k != "bolt" and k != "bubble" and k != "slug")
+		_mm[k] = _make_mm(meshes[k], PROJ_POOL[k], k != "bolt" and k != "bubble" and k != "slug" and k != "bullet")
 		var b := PackedFloat32Array()
 		b.resize(PROJ_POOL[k] * 16)
 		_buf[k] = b
@@ -326,6 +331,10 @@ func _hitscan(shooter: Actor, cfg: Dictionary, origin: Vector3, d: Vector3, muzz
 		fx.tracer(muzzle, end, "#ffffff", 0.02, 0.3)
 	elif tr == "heavy":
 		fx.tracer(muzzle, end, tc, 0.05, 0.05, minf(0.08, ht / 260))
+	elif tr == "ember":
+		fx.tracer(muzzle, end, tc, 0.035, 0.06, minf(0.07, ht / 260))
+		if randf() < 0.35:
+			fx.glow.emit(muzzle.lerp(end, randf() * 0.6), Vector3(U.rand(-0.5, 0.5), U.rand(0.3, 1.2), U.rand(-0.5, 0.5)), U.col(U.pick(["#ff7a1a", "#ffb347", "#ff3b1f"])), U.rand(0.05, 0.1), U.rand(0.15, 0.3), {"gravity": -1})
 	elif tr == "buzz":
 		fx.tracer(muzzle, end, tc, 0.03, 0.03, minf(0.06, ht / 300))
 	else:
@@ -435,6 +444,7 @@ func _spawn_projectile(shooter: Actor, cfg: Dictionary, origin: Vector3, d: Vect
 func update(dt: float) -> void:
 	barriers.update(dt, now)
 	_update_fires(dt)
+	_update_burns(dt)
 	_update_deployed(dt)
 	# arrows stuck in walls fade away
 	var stuck_dirty := false
@@ -593,7 +603,7 @@ func update(dt: float) -> void:
 			"arrow": stretch = 1.0
 			"bubble": stretch = 1 + minf(0.4, sp * 0.004)
 			"bolt": stretch = 1 + minf(3, sp * 0.02)
-			"slug": stretch = 1 + minf(6, sp * 0.02)
+			"slug", "bullet": stretch = 1 + minf(6, sp * 0.02)
 			_: stretch = 1 + minf(1.2, sp * 0.008)
 		var sz := U.rand(0.9, 1.1) if p.visual == "bubble" else 1.0
 		var b := _face(vel / maxf(1e-4, sp)).scaled_local(Vector3(sz, sz, stretch * sz))
@@ -837,13 +847,48 @@ func _update_deployed(_dt: float) -> void:
 		(d.head as Node3D).rotation = Vector3(atan2(to.y, Vector2(to.x, to.z).length()), atan2(-to.x, -to.z) - float(d.yaw), 0)
 		d.next_shot = now + float(cfg.interval)
 		var dir := U.cone_direction(to.normalized(), deg_to_rad(cfg.spreadDeg))
-		_auth = d.auth
-		_hitscan(d.owner, cfg.gun, muzzle + to.normalized() * 0.5, dir, muzzle + to.normalized() * 0.6, 1.0)
-		_auth = "full"
-		_flush_claims()
-		fx.muzzle(muzzle + to.normalized() * 0.6, to.normalized(), "#ffd23f", 0.6)
-		if randf() < 0.5:
-			audio.gunshot("rapidRascal", muzzle, false)
+		# real rounds: glowing tracer bullets that fly to the target (damage under the owner's authority)
+		_spawn_projectile(d.owner, cfg.gun, muzzle + to.normalized() * 0.5, dir, muzzle + to.normalized() * 0.6, 1.0, 1.0, d.auth)
+		fx.muzzle(muzzle + to.normalized() * 0.6, to.normalized(), "#ffd23f", 0.8)
+		audio.gunshot("rapidRascal", muzzle, false)
+
+
+## A Sizzler hit up close sets the target alight (once per shot, however many pellets hit).
+func _start_burn(target: Actor, attacker: Actor, point: Vector3) -> void:
+	var b: Dictionary = Cfg.WEAPONS.sizzler.burn
+	if attacker.eye_pos().distance_to(point) > float(b.range):
+		return
+	for x in _burns:
+		if x.target == target and x.shooter == attacker and x.started == now:
+			return
+	_burns.append({"target": target, "shooter": attacker, "left": int(b.ticks), "next": now + float(b.interval), "started": now})
+	target.burning_until = maxf(target.burning_until, now + float(b.ticks) * float(b.interval))
+
+
+func _update_burns(_dt: float) -> void:
+	# flames on anyone burning (from the snapshot too, so guests see them)
+	for a in actors.call():
+		if a.alive and a.burning_until > now and randf() < 0.6:
+			var c: Vector3 = a.chest_pos() + Vector3(U.rand(-0.25, 0.25), U.rand(-0.5, 0.4), U.rand(-0.25, 0.25))
+			fx.glow.emit(c, Vector3(U.rand(-0.3, 0.3), U.rand(1.2, 2.4), U.rand(-0.3, 0.3)), U.col(U.pick(["#ff6b2b", "#ffb347", "#ffd23f", "#d62828"])), U.rand(0.12, 0.25), U.rand(0.25, 0.45), {"gravity": -2, "drag": 1})
+	if _burns.is_empty():
+		return
+	var b: Dictionary = Cfg.WEAPONS.sizzler.burn
+	var keep := []
+	for x in _burns:
+		var t: Actor = x.target
+		if not t.alive or x.left <= 0 or x.shooter == null:
+			continue
+		if now >= x.next:
+			x.next += float(b.interval)
+			x.left -= 1
+			_auth = "full"
+			_burn_tick = true
+			apply_damage(t, x.shooter, float(b.dmg), false, t.chest_pos(), "sizzler", Vector3.UP)
+			_burn_tick = false
+		if x.left > 0 and t.alive:
+			keep.append(x)
+	_burns = keep
 
 
 ## Burning patches: flames, and damage four times a second to enemies standing in them.
@@ -1000,6 +1045,8 @@ func apply_damage(target: Actor, attacker, amount: float, head: bool, point: Vec
 	target.last_damage_weapon = weapon
 	if weapon == "glitchJug":
 		target.glitched_until = now + float(Cfg.GADGETS.glitchJug.explosion.glitch)
+	if weapon == "sizzler" and not _burn_tick and attacker and attacker != target:
+		_start_burn(target, attacker, point)
 	if weapon == "flashbang" or weapon == "drillFlash":
 		var fl: Dictionary = Cfg.GADGETS.flashbang.explosion.flash if weapon == "flashbang" else Cfg.GADGETS.breachDrill.explosion.flashThrough
 		target.flash_len = float(fl.time)
@@ -1072,6 +1119,7 @@ func _eliminate(victim: Actor, killer, weapon: String, head: bool) -> void:
 func clear() -> void:
 	barriers.clear()
 	_fires.clear()
+	_burns.clear()
 	for d in _deployed.duplicate():
 		(d.node as Node).queue_free()
 	_deployed.clear()

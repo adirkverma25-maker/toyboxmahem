@@ -13,6 +13,7 @@ const WEAPON_PRICES := {
 	"thunderspring": 1000, "plungerBow": 1000,
 	"popcornPopper": 1500,
 	"walloper": 1800,
+	"sizzler": 700,
 }
 const TIER_COLORS := {"Starter": "#cfd8dc", "Common": "#7dff6b", "Rare": "#5ff4ff", "Epic": "#c77dff", "Legendary": "#ffd23f"}
 

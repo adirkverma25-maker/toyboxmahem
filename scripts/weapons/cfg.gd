@@ -15,7 +15,7 @@ const WEAPONS := {
 		"recoveryRate": 10, "recoveryDelay": 0.09, "adsRecoilMult": 0.8,
 		"kick": {"back": 0.06, "up": 0.05, "roll": 0.03, "shake": 0.05},
 		"colors": {"main": "#1fb5ad", "accent": "#ff8c1a", "glow": "#7dfff3", "tracer": "#ffb347"},
-		"botRange": [3, 22],
+		"casing": "pistol", "botRange": [3, 22],
 	},
 	"foamFury": {
 		"id": "foamFury", "name": "FOAM FURY", "category": "Automatic foam dart rifle", "slotHint": 1,
@@ -32,7 +32,7 @@ const WEAPONS := {
 		"recoveryRate": 8, "recoveryDelay": 0.12, "adsRecoilMult": 0.75,
 		"kick": {"back": 0.035, "up": 0.025, "roll": 0.02, "shake": 0.04},
 		"colors": {"main": "#ff7a1a", "accent": "#2f6fe0", "glow": "#ffd08a", "tracer": "#ff9a3c"},
-		"botRange": [6, 32],
+		"casing": "rifle", "botRange": [6, 32],
 	},
 	"brickbreaker": {
 		"id": "brickbreaker", "name": "BRICKBREAKER", "category": "Heavy toy assault rifle", "slotHint": 1,
@@ -49,7 +49,7 @@ const WEAPONS := {
 		"recoveryRate": 7, "recoveryDelay": 0.13, "adsRecoilMult": 0.6,
 		"kick": {"back": 0.06, "up": 0.04, "roll": 0.025, "shake": 0.08},
 		"colors": {"main": "#1d1d1f", "accent": "#ffcc00", "glow": "#ff3b30", "tracer": "#ffd54a"},
-		"botRange": [10, 42],
+		"casing": "rifle", "botRange": [10, 42],
 	},
 	"bubbleBlaster": {
 		"id": "bubbleBlaster", "name": "BUBBLE BLASTER", "category": "Close-range toy shotgun", "slotHint": 1,
@@ -91,7 +91,7 @@ const WEAPONS := {
 		"recoveryRate": 9, "recoveryDelay": 0.1, "adsRecoilMult": 0.85,
 		"kick": {"back": 0.025, "up": 0.012, "roll": 0.03, "shake": 0.03},
 		"colors": {"main": "#39ff88", "accent": "#ff4fd8", "glow": "#9dffcb", "tracer": "#ff8ae6"},
-		"botRange": [0, 16],
+		"casing": "pistol", "botRange": [0, 16],
 	},
 	"crayonCannon": {
 		"id": "crayonCannon", "name": "CRAYON CANNON", "category": "Explosive projectile launcher", "slotHint": 1,
@@ -135,7 +135,7 @@ const WEAPONS := {
 		"recoveryRate": 8, "recoveryDelay": 0.05, "adsRecoilMult": 0.8,
 		"kick": {"back": 0.14, "up": 0.1, "roll": 0.05, "shake": 0.15},
 		"colors": {"main": "#e63946", "accent": "#ffd23f", "glow": "#ffe8a3", "tracer": "#ffd23f"},
-		"botRange": [4, 26],
+		"casing": "shell", "botRange": [4, 26],
 	},
 	"plungerBow": {
 		"id": "plungerBow", "name": "PLUNGER LONGBOW", "category": "Charge bow", "slotHint": 1,
@@ -182,6 +182,23 @@ const WEAPONS := {
 		"botRange": [10, 60],
 		"knockback": 9,
 	},
+	"sizzler": {
+		"id": "sizzler", "name": "SIZZLER", "category": "Burning semi-auto shotgun", "slotHint": 1,
+		"blurb": "Four hot shells, as fast as you can click. Up close a shot hits for 50 and sets them burning for 3 more every half second, six times (68 in all). Useless past 12 m.",
+		"damage": 5, "headMult": 1.0, "pellets": 10, "magSize": 4, "reserve": 32, "rpm": 330, "auto": false,
+		"reloadTime": 2.3, "reloadPerShell": 0.42, "effectiveRange": 4, "falloffEnd": 12, "minDamageMult": 0.15,
+		"adsZoom": 1.1, "adsTime": 0.16, "adsMoveMult": 0.85,
+		"projectile": {"kind": "hitscan", "tracer": "ember"},
+		"spread": {"hip": 5.5, "ads": 4.2, "move": 0.6, "air": 1.5, "bloomPerShot": 0, "bloomMax": 0, "bloomDecay": 5},
+		"recoil": {"kind": "random", "pitch": 2.2, "pitchGrowth": 0, "pitchMax": 2.2, "yaw": 0.5, "yawGrowth": 0, "yawBias": 0},
+		"recoveryRate": 10, "recoveryDelay": 0.05, "adsRecoilMult": 0.85,
+		"kick": {"back": 0.13, "up": 0.1, "roll": 0.05, "shake": 0.15},
+		"colors": {"main": "#2c2f34", "accent": "#ff5a1f", "glow": "#ffb347", "tracer": "#ff7a1a"},
+		"botRange": [0, 9],
+		"casing": "shell",
+		## up close (within range m) a hit sets the target burning: dmg every interval s, ticks times
+		"burn": {"dmg": 3.0, "ticks": 6, "interval": 0.5, "range": 7.0},
+	},
 }
 
 ## Scopes. style: none (gun's own sights), reticle (small optic + lit reticle), overlay (full scope picture),
@@ -212,18 +229,19 @@ const WEAPON_SCOPES := {
 	"plungerBow": ["bare", "eagle", "hawk"],
 	"popcornPopper": ["iron", "dot", "ring", "x2", "x4"],
 	"walloper": ["iron", "dot", "ring", "x2"],
+	"sizzler": ["iron", "dot"],
 }
 
 ## Every weapon draws its own reticle shape inside whatever scope is fitted.
 const RETICLES := {
 	"plasti9": "dot", "foamFury": "chevron", "brickbreaker": "brick", "bubbleBlaster": "bubbles",
 	"thunderspring": "cross", "rapidRascal": "circleDot", "crayonCannon": "crayon", "starlightZapper": "star",
-	"jackBlaster": "jack", "plungerBow": "dot", "popcornPopper": "kernels", "walloper": "boom",
+	"jackBlaster": "jack", "plungerBow": "dot", "popcornPopper": "kernels", "walloper": "boom", "sizzler": "bubbles",
 }
 
 const WEAPON_ORDER := [
 	"plasti9", "foamFury", "brickbreaker", "bubbleBlaster", "thunderspring", "rapidRascal", "crayonCannon",
-	"starlightZapper", "jackBlaster", "plungerBow", "popcornPopper", "walloper",
+	"starlightZapper", "jackBlaster", "plungerBow", "popcornPopper", "walloper", "sizzler",
 ]
 
 const MOVE := {
@@ -262,7 +280,7 @@ const CLASSES := {
 	},
 	"medium": {
 		"name": "Medium", "health": 150.0, "speed": 0.9, "melee": "spear",
-		"guns": ["foamFury", "brickbreaker", "popcornPopper", "crayonCannon", "jackBlaster", "walloper"],
+		"guns": ["foamFury", "brickbreaker", "popcornPopper", "crayonCannon", "jackBlaster", "walloper", "sizzler"],
 		"abilities": ["shield", "cloak"],
 		"gadgets": ["turret", "healthInfuser", "breachDrill", "explosiveMine", "pyroMine"],
 	},
@@ -312,8 +330,8 @@ const GADGETS := {
 	"turret": {"id": "turret", "gadget": true, "name": "Turret", "short": "Turret", "cooldown": 30.0,
 		"blurb": "Sets down a little turret that shoots enemies it can see within 28 m for 30 seconds.",
 		"deploy": "turret", "life": 30.0, "range": 28.0, "interval": 0.16, "spreadDeg": 2.6,
-		"gun": {"id": "turret", "damage": 7.0, "headMult": 1.0, "effectiveRange": 18.0, "falloffEnd": 32.0, "minDamageMult": 0.6,
-			"projectile": {"kind": "hitscan", "tracer": "buzz"}, "colors": {"main": "#3d405b", "accent": "#ffd23f", "glow": "#ffd23f", "tracer": "#ffd23f"}},
+		"gun": {"id": "turret", "name": "TURRET", "damage": 8.0, "headMult": 1.0, "effectiveRange": 18.0, "falloffEnd": 32.0, "minDamageMult": 0.6,
+			"projectile": {"kind": "projectile", "visual": "bullet", "speed": 150, "gravity": 1.5, "radius": 0.04, "life": 0.35}, "colors": {"main": "#3d405b", "accent": "#ffd23f", "glow": "#ffd23f", "tracer": "#ffd23f"}},
 		"colors": {"main": "#3d405b", "accent": "#ffd23f", "glow": "#ffd23f", "tracer": "#ffd23f"}},
 	"healthInfuser": {"id": "healthInfuser", "gadget": true, "name": "Health Infuser", "short": "Heal", "cooldown": 18.0,
 		"blurb": "Pumps 60 health into you and every teammate within 7 m.",
@@ -356,8 +374,8 @@ const COMBAT := {
 	"maxShield": 50.0,
 	"regenDelay": 6.0,
 	"regenRate": 8.0,
-	"respawnTime": 5.0,
-	"reviveTime": 3.0,
+	"respawnTime": 7.0,
+	"reviveTime": 1.0,
 	"reviveRange": 2.4,
 	"reviveHealth": 60.0,
 	"spawnProtection": 1.5,

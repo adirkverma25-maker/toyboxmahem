@@ -50,7 +50,9 @@ const MELEE_HELD := 39
 const GLITCH := 40
 ## seconds of flash left
 const FLASH := 41
-const LENGTH := 42
+## seconds of Sizzler burn left
+const BURN := 42
+const LENGTH := 43
 
 ## fields that blend smoothly between snapshots; everything else steps to the newer value
 const LERP := [X, Y, Z, PITCH, CROUCH, ADS, SPEED]
@@ -131,6 +133,7 @@ static func pack_actor(a: Actor, now: float) -> Array:
 	p[MELEE_HELD] = _b(a.melee_held)
 	p[GLITCH] = _left(a.glitched_until, now)
 	p[FLASH] = _left(a.flashed_until, now)
+	p[BURN] = _left(a.burning_until, now)
 	p[RESPAWN] = NO_RESPAWN if a.respawn_at < 0 else r2(a.respawn_at - now)
 	p[REVIVE_T] = r2(a.revive_t)
 	p[TURBO] = _left(a.buffs.turbo, now)
@@ -205,6 +208,8 @@ static func unpack_status_into(p: Array, a: Actor, now: float) -> void:
 		if fl > 0 and a.flashed_until <= now:
 			a.flash_len = fl
 		a.flashed_until = now + fl if fl > 0 else 0.0
+	if p.size() > BURN:
+		a.burning_until = now + float(p[BURN]) if p[BURN] > 0 else 0.0
 	a.buffs.power = now + float(p[POWER]) if p[POWER] > 0 else 0.0
 
 

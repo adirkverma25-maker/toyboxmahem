@@ -15,7 +15,7 @@ const ZONE_LOOPS := [
 	["brick", "white", "bandpass", 5000.0, 0.015],
 	["rug", "pink", "lowpass", 400.0, 0.03],
 ]
-const RELOAD_PITCH := {"plasti9": 1.25, "foamFury": 1.0, "brickbreaker": 0.8, "bubbleBlaster": 1.1, "thunderspring": 0.9, "rapidRascal": 1.15, "crayonCannon": 0.7, "starlightZapper": 1.3, "jackBlaster": 0.95, "plungerBow": 1.1, "popcornPopper": 1.2, "walloper": 0.7}
+const RELOAD_PITCH := {"plasti9": 1.25, "foamFury": 1.0, "brickbreaker": 0.8, "bubbleBlaster": 1.1, "thunderspring": 0.9, "rapidRascal": 1.15, "crayonCannon": 0.7, "starlightZapper": 1.3, "jackBlaster": 0.95, "plungerBow": 1.1, "popcornPopper": 1.2, "walloper": 0.7, "sizzler": 0.9}
 const PICKUP_NOTES := {"health": [523, 659, 784], "shield": [392, 587, 784, 1175], "turbo": [440, 554, 659, 880], "infinite": [659, 523, 659, 880], "power": [523, 784, 1047, 1568], "weapon": [330, 494], "ammo": [660, 880]}
 
 var music: Music = null
@@ -385,6 +385,13 @@ static func _r_gunshot(w: String) -> Array:
 			o.append(_T("triangle", 420 * p, 120, 0, 0.09, _E(0.001, 0.1, 0.5)))
 			o.append(_N("pink", "lowpass", 500, 0.6, 0.08, _E(0.02, 0.6, 0.45), 120))
 			o.append(_C(0.3, 2400 + variant * 200, 0.3))
+		"sizzler":
+			o.append(_N("brown", "lowpass", 1300 * p, 0.8, 0, _E(0.001, 0.22, 1.8), 280))
+			o.append(_T("sine", 85 * p, 36, 0, 0.2, _E(0.002, 0.22, 1.5)))
+			o.append(_N("white", "bandpass", 2800 * p, 1.0, 0, _E(0.001, 0.05, 0.9)))
+			o.append(_N("pink", "bandpass", 650, 0.7, 0.02, _E(0.03, 0.4, 0.55), 2400))
+			o.append(_C(0.14 + variant * 0.01, 2400, 0.4))
+			o.append(_C(0.17 + variant * 0.01, 1700, 0.3))
 		"plungerBow":
 			o.append(_T("triangle", 190 * p, 140 * p, 0, 0.22, _E(0.001, 0.25, 0.5)))
 			o.append(_T("sine", 380 * p, 300 * p, 0, 0.15, _E(0.001, 0.16, 0.25)))
@@ -474,6 +481,11 @@ static func _r_reload(w: String, part: String) -> Array:
 			o.append(_N("white", "bandpass", 2000 * pitch, 2, 0, _E(0.01, 0.09, 0.4), 3500 * pitch))
 			o.append(_C(0.1, 3800 * pitch, 0.6))
 			o.append(_T("triangle", 700 * pitch, 1200 * pitch, 0.1, 0.12, _E(0.002, 0.15, 0.12)))
+		"drop":
+			o.append(_N("pink", "lowpass", 700 * pitch, 1.0, 0, _E(0.002, 0.08, 0.6)))
+			o.append(_C(0.0, 2100 * pitch, 0.45, 0.02))
+			o.append(_C(0.07, 2900 * pitch, 0.25, 0.015))
+			o.append(_T("sine", 220 * pitch, 140, 0, 0.06, _E(0.002, 0.07, 0.35)))
 		"shell":
 			o.append(_C(0, 2600, 0.5))
 			o.append(_T("sine", 500, 1300, 0, 0.05, _E(0.002, 0.06, 0.25)))
@@ -584,6 +596,23 @@ func spring_wind(pos = null, local := true) -> void:
 
 func reload_part(w: String, part: String, local := true, pos = null) -> void:
 	_play("reload:%s:%s" % [w, part], func(): return _r_reload(w, part), 0.5 if local else 0.4, null if local else pos, "SFX", 2.5)
+
+
+## Spent brass (or a shotgun hull) bouncing on the floor a moment after a shot.
+func casing(kind: String) -> void:
+	_play("casing:" + kind, func():
+		var o := []
+		var t0 := U.rand(0.32, 0.45)
+		if kind == "shell":
+			o.append(_T("sine", 520, 380, t0, 0.05, _E(0.002, 0.06, 0.3)))
+			o.append(_C(t0 + 0.08, 1500, 0.2, 0.02))
+		else:
+			var f := 5200.0 if kind == "pistol" else 4300.0
+			for i in 3:
+				var tt := t0 + i * U.rand(0.06, 0.1)
+				o.append(_T("sine", f * U.rand(0.95, 1.08), f, tt, 0.06, _E(0.001, 0.07, 0.22 / (i + 1))))
+				o.append(_T("sine", f * 1.52, f * 1.5, tt, 0.04, _E(0.001, 0.05, 0.1 / (i + 1))))
+		return o, 0.22, null, "SFX", 2)
 
 
 func empty(_local := true) -> void:

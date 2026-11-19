@@ -256,6 +256,9 @@ func _autotest() -> void:
 	if screen == "meleetest":
 		await MeleeTest.run(self)
 		return
+	if screen.begins_with("guntest"):
+		await GunTest.run(self, screen.trim_prefix("guntest").trim_prefix(":"))
+		return
 	if screen == "destruct":
 		await DestructTest.run(self)
 		return

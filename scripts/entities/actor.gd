@@ -115,6 +115,8 @@ var gadget_ready_at := 0.0
 var last_damage_weapon := ""
 ## hit by a Glitch Jug: no abilities or gadgets until then
 var glitched_until := 0.0
+## set alight by the Sizzler: flames show until then
+var burning_until := 0.0
 ## flashed (Flashbang / Breach Drill): white screen / blind until then, and how long it was (for the fade)
 var flashed_until := 0.0
 var flash_len := 1.0
@@ -424,6 +426,7 @@ func spawn(at: Vector3, y: float, now: float) -> void:
 	gadget_ready_at = 0.0
 	glitched_until = 0.0
 	flashed_until = 0.0
+	burning_until = 0.0
 	recent_damage = []
 	health = max_health
 	shield = 0

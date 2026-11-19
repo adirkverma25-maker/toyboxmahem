@@ -7,7 +7,7 @@ extends Node
 ## Roles: one HOST per room runs the real match (bots, damage, scores, mode rules); GUESTS move their own
 ## toy, check their own shots and tell the host. The relay only routes: guest -> host, host -> one or all.
 
-const PROTOCOL_VERSION := 107
+const PROTOCOL_VERSION := 108
 ## host snapshots per second
 const TICK_RATE := 20
 ## guest state messages per second

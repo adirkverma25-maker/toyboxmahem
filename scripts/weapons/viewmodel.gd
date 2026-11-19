@@ -41,6 +41,13 @@ var cloak_mat: StandardMaterial3D
 var cloak_on := false
 var scope_hidden := false
 var optic: Node3D = null
+## real-gun reloads: last reload fraction (to catch beats), whether the old mag was thrown yet
+var _prev_rf := 0.0
+var _dropped := false
+## spent casings in flight [node, vel, spin, life] and dropped magazines [node, vel, spin, life]
+var _casings := {}
+var _flying: Array = []
+var hand_shell: Node3D = null
 
 
 ## semi-implicit damped spring [x, v], sub-stepped for frame-rate independence
@@ -204,6 +211,9 @@ func set_weapon(id: String, instant := false) -> void:
 		holder.remove_child(current)
 	current = null
 	current_id = id
+	if hand_shell:
+		hand_shell.queue_free()
+		hand_shell = null
 	if id == "":
 		return
 	var m := _get_model(id)
@@ -248,7 +258,7 @@ func on_fire(id: String, ads: bool, reduced: bool) -> void:
 	kick_roll[1] += U.rand(-1, 1) * cfg.kick.roll * 30 * mot
 	flash_t = 0.045
 	flash.visible = true
-	var s := U.rand(0.8, 1.25) * (1.6 if id == "crayonCannon" or id == "bubbleBlaster" else (0.8 if id == "rapidRascal" else 1.0))
+	var s := U.rand(0.8, 1.25) * (1.6 if id == "crayonCannon" or id == "bubbleBlaster" or id == "sizzler" else (0.8 if id == "rapidRascal" else 1.0))
 	flash.basis = Basis(Vector3.BACK, randf() * PI).scaled_local(Vector3.ONE * s)
 	flash_mat.albedo_color = U.col(cfg.colors.glow)
 	fire_anim = 1
@@ -264,6 +274,8 @@ func on_fire(id: String, ads: bool, reduced: bool) -> void:
 		p.chamber.rotation.z += PI / 3
 	if p.has("wheel"):
 		p.wheel.rotation.x += TAU / 5
+	if current.real and current.eject and current.casing != "":
+		_throw_casing(current.casing)
 	if id == "thunderspring":
 		bolt_t = 1
 	if id == "jackBlaster":
@@ -276,6 +288,7 @@ func on_land(strength: float) -> void:
 
 func update(dt: float, c: Dictionary) -> void:
 	time += dt
+	_update_flying(dt)
 	var m := current
 	if m == null:
 		return
@@ -333,13 +346,18 @@ func update(dt: float, c: Dictionary) -> void:
 	# reload pose
 	var rf := 0.0
 	if ws and ws.reloading:
-		rf = 0.5 if ws.cfg.has("reloadPerShell") else ws.reload_progress()
+		rf = (0.5 if not current.real else ws.shell_t()) if ws.cfg.has("reloadPerShell") else ws.reload_progress()
 	var reload_on := 1.0 if ws and ws.reloading else 0.0
 	reload_vis = U.damp(reload_vis, reload_on, 10, dt)
 	var rv := reload_vis
 	if rv > 0.001:
 		var tilt := [0.2, -0.1, 0.55]
-		match current_id:
+		if m.real:
+			# real guns roll the other way: magwell / loading port turned toward you, pulled in to the middle
+			tilt = [0.28, 0.32, -0.6]
+			pos.x -= 0.05 * rv
+			pos.y += 0.035 * rv
+		match current_id if not m.real else "":
 			"crayonCannon": tilt = [0.5, -0.2, 0.2]
 			"bubbleBlaster": tilt = [0.15, 0.3, -0.7]
 			"thunderspring": tilt = [0.2, 0.25, 0.5]
@@ -410,7 +428,9 @@ func update(dt: float, c: Dictionary) -> void:
 			flash.visible = false
 	# left hand follows the magazine during reloads
 	var lg := m.left_grip
-	if rv > 0.01 and parts.has("mag"):
+	if m.real:
+		_real_reload(ws, rf, rv, c)
+	elif rv > 0.01 and parts.has("mag"):
 		var target: Vector3 = (parts.mag as Node3D).position + Vector3(-0.02, -0.04, 0.02)
 		hand_l.position = lg.lerp(target, rv)
 		hand_l.rotation = Vector3(-0.4 * rv, 0, -0.3 * rv)
@@ -467,7 +487,7 @@ func _animate_parts(dt: float, c: Dictionary, rf: float, rv: float) -> void:
 		p.pistons.position.z = (rest.pistons as Transform3D).origin.z + fire_anim * 0.04
 	if p.has("shroud"):
 		p.shroud.rotation.z += dt * (12.0 if firing else 0.0)
-	if p.has("charge") and rest.has("charge") and id == "plasti9":
+	if p.has("charge") and rest.has("charge") and id == "plasti9" and not m.real:
 		p.charge.position.z = (rest.charge as Transform3D).origin.z + fire_anim * 0.05
 	if p.has("spring") and id == "thunderspring":
 		# fire: spring twangs; reload: compress then lock
@@ -479,6 +499,8 @@ func _animate_parts(dt: float, c: Dictionary, rf: float, rv: float) -> void:
 		p.spring.scale.z = comp + twang
 		if p.has("bolt") and rest.has("bolt"):
 			p.bolt.position.z = (rest.bolt as Transform3D).origin.z + ((1 - bolt_t) * 0.08 if bolt_t > 0.4 else bolt_t * 0.12) + U.smoothstep(0.55, 0.7, rf) * 0.08 * rv * (1 - U.smoothstep(0.85, 1, rf))
+	if m.real:
+		return  # real guns: _real_reload moves the mag, slide and hand
 	# reload choreography for magazines
 	if p.has("mag") and rest.has("mag"):
 		var r: Vector3 = (rest.mag as Transform3D).origin
@@ -520,6 +542,201 @@ func _animate_parts(dt: float, c: Dictionary, rf: float, rv: float) -> void:
 		p.needle.rotation.y = -1 + pres * 2 + sin(time * 20) * 0.04 * fire_anim
 		p.needle2.rotation.y = -0.6 + sin(time * 2) * 0.2
 
+
+
+## Reload beat (fraction of the reload) by name, for the current gun.
+func _beat(name: String, fallback: float) -> float:
+	for b in WeaponState.RELOAD_BEATS.get(current_id, []):
+		if b[1] == name:
+			return b[0]
+	return fallback
+
+
+## Real-gun reload: thumb the release, the empty mag drops away, the hand fetches a fresh one (rounds on top),
+## seats it with a shove, then racks the charging handle / drops the slide. Per-shell guns get shells pushed
+## into the loading port one at a time. Also: slides and bolts cycle with each shot and lock back when empty.
+func _real_reload(ws: WeaponState, rf: float, rv: float, c: Dictionary) -> void:
+	var m := current
+	var p := m.parts
+	var lg := m.left_grip
+	var hand := lg
+	var hand_rot := Vector3.ZERO
+	var reloading: bool = ws != null and ws.reloading
+	var empty: bool = ws != null and ws.mag <= 0
+	var pull := 0.0
+	if not reloading:
+		_dropped = false
+		_prev_rf = 0.0
+	if hand_shell:
+		hand_shell.visible = false
+	var pouch := lg + Vector3(-0.12, -0.6, -0.02)
+	if reloading and ws.cfg.has("reloadPerShell"):
+		# shells, one by one, into the port under the receiver
+		var ph := ws.shell_phase()
+		var t := ws.shell_t()
+		var port := m.shell_port + Vector3(0, -0.035, 0.0)
+		if ph == "open":
+			hand = lg.lerp(pouch, U.smoothstep(0, 1, t))
+		elif ph == "shells":
+			_ensure_hand_shell()
+			hand_shell.visible = t < 0.92
+			if t < 0.5:
+				hand = pouch.lerp(port + Vector3(0, -0.05, 0.02), U.smoothstep(0, 1, t / 0.5))
+			elif t < 0.9:
+				hand = (port + Vector3(0, -0.05, 0.02)).lerp(port + Vector3(0, 0.0, -0.03), U.smoothstep(0, 1, (t - 0.5) / 0.4))
+			else:
+				hand = (port + Vector3(0, 0.0, -0.03)).lerp(pouch, U.smoothstep(0, 1, (t - 0.9) / 0.1) * 0.3)
+			hand_rot = Vector3(1.0, 0, 0.2)
+		else:
+			hand = pouch.lerp(lg, U.smoothstep(0, 1, t))
+	elif reloading and p.has("mag"):
+		var mag: Node3D = p.mag
+		var r: Transform3D = m.rest.mag
+		var b_out := _beat("out", 0.12)
+		var b_in := _beat("in", 0.55)
+		var b_ch := _beat("charge", 0.82)
+		var base: Vector3 = r.origin + m.mag_dir * 0.1
+		var mag_off := 0.0
+		if rf < b_out:
+			hand = lg.lerp(base, U.smoothstep(0, b_out, rf))
+		elif rf < b_in - 0.24:
+			# old mag gone, hand down to the pouch
+			if not _dropped:
+				_drop_mag(ws.mag <= 0)
+			mag.visible = false
+			hand = base.lerp(pouch, U.smoothstep(b_out, b_in - 0.26, rf))
+		elif rf < b_in:
+			# fresh mag comes up and goes in
+			mag.visible = true
+			var k := U.smoothstep(b_in - 0.24, b_in, rf)
+			mag_off = lerpf(0.5, 0.0, k)
+			hand = pouch.lerp(base, k)
+		else:
+			mag.visible = true
+			if _prev_rf < b_in:
+				kick_rot[1] += 1.4  # seated with a shove
+				kick_z[1] -= 0.6
+			# rack the handle if it's out in front; if it's back by your face (AR), slap the bolt catch on the side
+			var ch_at: Vector3 = (m.rest.charge.origin if m.rest.has("charge") else lg) + Vector3(0.0, 0.03, 0.03)
+			var at_handle := ch_at.z < -0.05
+			if not at_handle:
+				ch_at = Vector3(-0.05, ch_at.y - 0.05, -0.08)
+			if rf < b_in + 0.06:
+				hand = base + Vector3(0, -0.015, 0)  # slap the baseplate
+			elif rf < b_ch - 0.08:
+				hand = base.lerp(ch_at, U.smoothstep(b_in + 0.06, b_ch - 0.1, rf))
+			elif rf < b_ch + 0.04:
+				hand = ch_at + Vector3(0, 0, U.smoothstep(b_ch - 0.08, b_ch - 0.02, rf) * 0.07 * (1 - U.smoothstep(b_ch, b_ch + 0.03, rf)))
+				pull = U.smoothstep(b_ch - 0.08, b_ch - 0.02, rf) * (1 - U.smoothstep(b_ch, b_ch + 0.02, rf)) if at_handle else 0.0
+				if _prev_rf < b_ch and rf >= b_ch:
+					kick_rot[1] += 0.8
+			else:
+				hand = ch_at.lerp(lg, U.smoothstep(b_ch + 0.04, 1.0, rf))
+			if not m.rest.has("charge"):
+				hand = base.lerp(lg, U.smoothstep(b_in + 0.06, 1.0, rf))
+		mag.position = r.origin + m.mag_dir * mag_off
+		hand_rot = Vector3(1.15, 0, 0.25)  # forearm angled down and away, not across the view
+		_prev_rf = rf
+	elif p.has("mag"):
+		(p.mag as Node3D).visible = true
+		(p.mag as Node3D).transform = m.rest.mag
+	if m.rounds:
+		m.rounds.visible = true
+	# slide / charging handle / bolt: cycles on each shot, locks back on an empty gun
+	var fire_back := fire_anim * 0.045
+	var locked: bool = empty and not (reloading and not ws.cfg.has("reloadPerShell") and rf >= _beat("charge", 0.82))
+	if p.has("charge") and m.rest.has("charge"):
+		var z := pull * 0.07
+		if m.charge_cycles:
+			z = maxf(z, maxf(fire_back, 0.05 if locked else 0.0))
+		(p.charge as Node3D).position = m.rest.charge.origin + Vector3(0, 0, z)
+	if p.has("bcg") and m.rest.has("bcg"):
+		(p.bcg as Node3D).position = m.rest.bcg.origin + Vector3(0, 0, maxf(fire_back, 0.04 if locked else 0.0))
+	# the left hand: blend into the reload path and back to the grip
+	var k2 := clampf(rv * 1.2, 0, 1)
+	hand_l.position = lg.lerp(hand, k2)
+	hand_l.rotation = hand_rot * k2
+
+
+## Throw a copy of the magazine out of the gun: it falls away and disappears.
+func _drop_mag(was_empty: bool) -> void:
+	_dropped = true
+	var mag: Node3D = current.parts.mag
+	var d := mag.duplicate() as Node3D
+	var r := d.get_node_or_null("rounds")
+	if r and was_empty:
+		r.visible = false
+	add_child(d)
+	d.transform = holder.transform * current.transform * mag.transform
+	var v := holder.basis * (current.mag_dir * 2.2) + Vector3(U.rand(-0.1, 0.1), -0.3, 0.1)
+	_flying.append([d, v, Vector3(U.rand(-4, 4), U.rand(-2, 2), U.rand(-3, 3)), 0.9, true])
+
+
+func _ensure_hand_shell() -> void:
+	if hand_shell:
+		return
+	hand_shell = Node3D.new()
+	var k := GunKit.new()
+	k.round_at(hand_shell, Vector3(0, 0, 0.03), 0.013, 0.07, current.casing == "shell")
+	k.bake()
+	hand_shell.position = Vector3(0, 0.05, -0.01)
+	hand_shell.rotation = Vector3(-0.2, 0, 0)
+	hand_l.add_child(hand_shell)
+
+
+func _casing_node(kind: String) -> Node3D:
+	if not _casings.has(kind):
+		_casings[kind] = []
+	for n: Node3D in _casings[kind]:
+		if not n.visible:
+			return n
+	if (_casings[kind] as Array).size() >= 10:
+		return null
+	var n := Node3D.new()
+	var k := GunKit.new()
+	match kind:
+		"shell": k.round_at(n, Vector3(0, 0, 0.035), 0.013, 0.07, true)
+		"rifle": k.add(n, GunKit.mat("brass"), GunKit.tube(0.0055, 0.032, 10).translate(0, 0, 0), Vector3.ZERO)
+		_: k.add(n, GunKit.mat("brass"), GunKit.tube(0.0065, 0.022, 10), Vector3.ZERO)
+	k.bake()
+	n.visible = false
+	add_child(n)
+	(_casings[kind] as Array).append(n)
+	return n
+
+
+## Spent brass out of the ejection port: up and to the right, tumbling.
+func _throw_casing(kind: String) -> void:
+	var n := _casing_node(kind)
+	if n == null:
+		return
+	var xf := holder.transform * current.transform
+	n.transform = Transform3D(xf.basis, xf * current.eject.position)
+	n.visible = true
+	var v: Vector3 = xf.basis * Vector3(U.rand(2.6, 3.6), U.rand(2.0, 3.0), U.rand(0.4, 1.2))
+	_flying.append([n, v, Vector3(U.rand(-25, 25), U.rand(-15, 15), U.rand(-25, 25)), 0.55, false])
+
+
+func _update_flying(dt: float) -> void:
+	if _flying.is_empty():
+		return
+	var keep := []
+	for f in _flying:
+		var n: Node3D = f[0]
+		f[3] -= dt
+		if f[3] <= 0 or not is_instance_valid(n):
+			if is_instance_valid(n):
+				if f[4]:
+					n.queue_free()
+				else:
+					n.visible = false
+			continue
+		f[1] += Vector3(0, -6.0, 0) * dt
+		n.position += f[1] * dt
+		var sp: Vector3 = f[2]
+		n.basis = n.basis * Basis.from_euler(sp * dt)
+		keep.append(f)
+	_flying = keep
 
 ## World-space approx of the muzzle for tracers (the viewmodel lives in its own world).
 static func muzzle_world(cam_xf: Transform3D, ads: float) -> Vector3:
