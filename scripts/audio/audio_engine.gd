@@ -15,7 +15,7 @@ const ZONE_LOOPS := [
 	["brick", "white", "bandpass", 5000.0, 0.015],
 	["rug", "pink", "lowpass", 400.0, 0.03],
 ]
-const RELOAD_PITCH := {"plasti9": 1.25, "foamFury": 1.0, "brickbreaker": 0.8, "bubbleBlaster": 1.1, "thunderspring": 0.9, "rapidRascal": 1.15, "crayonCannon": 0.7, "starlightZapper": 1.3, "jackBlaster": 0.95, "plungerBow": 1.1, "popcornPopper": 1.2, "walloper": 0.7, "sizzler": 0.9, "skybolt": 0.85}
+const RELOAD_PITCH := {"plasti9": 1.25, "foamFury": 1.0, "brickbreaker": 0.8, "bubbleBlaster": 1.1, "thunderspring": 0.9, "rapidRascal": 1.15, "crayonCannon": 0.7, "starlightZapper": 1.3, "jackBlaster": 0.95, "plungerBow": 1.1, "popcornPopper": 1.2, "walloper": 0.7, "sizzler": 0.9, "tumbleweed": 0.85}
 const PICKUP_NOTES := {"health": [523, 659, 784], "shield": [392, 587, 784, 1175], "turbo": [440, 554, 659, 880], "infinite": [659, 523, 659, 880], "power": [523, 784, 1047, 1568], "weapon": [330, 494], "ammo": [660, 880]}
 
 var music: Music = null
@@ -385,7 +385,7 @@ static func _r_gunshot(w: String) -> Array:
 			o.append(_T("triangle", 420 * p, 120, 0, 0.09, _E(0.001, 0.1, 0.5)))
 			o.append(_N("pink", "lowpass", 500, 0.6, 0.08, _E(0.02, 0.6, 0.45), 120))
 			o.append(_C(0.3, 2400 + variant * 200, 0.3))
-		"skybolt":
+		"tumbleweed":
 			o.append(_N("brown", "lowpass", 1250 * p, 0.8, 0, _E(0.001, 0.2, 1.6), 300))
 			o.append(_N("white", "bandpass", 2600, 1, 0, _E(0.001, 0.045, 0.7)))
 			o.append(_T("sine", 105 * p, 46, 0, 0.16, _E(0.002, 0.18, 1.2)))

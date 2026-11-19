@@ -842,7 +842,7 @@ func _b_sizzler() -> void:
 	_finalize(Vector3(0, 0.035, -0.62), Vector3(0, -0.1, 0.095), Vector3(0, -0.04, -0.33), Vector3(0, -0.12, 0))
 
 
-func _b_skybolt() -> void:
+func _b_tumbleweed() -> void:
 	# long-range AR: full-length gunmetal rails, long fluted barrel with a brake, toy-sky-blue handguard / stock
 	# panels and a flip-up rear sight; mid-length magwell with a curved 30-round mag
 	var k := GunKit.new()
@@ -891,23 +891,22 @@ func _b_skybolt() -> void:
 	add_child(bcg)
 	parts.bcg = bcg
 	k.add(bcg, steel, GunKit.box(0.003, 0.018, 0.06, 0.001), Vector3(0.032, 0.03, -0.08))
+	# short straight 12-round mag (small capacity, hits hard)
 	var mag := Node3D.new()
-	mag.position = Vector3(0, -0.13, -0.12)
-	mag.rotation = Vector3(0.1, 0, 0)
+	mag.position = Vector3(0, -0.125, -0.12)
+	mag.rotation = Vector3(0.05, 0, 0)
 	add_child(mag)
 	parts.mag = mag
-	var poly2 := GunKit.mat("polymer2")
-	k.add(mag, poly2, GunKit.box(0.05, 0.11, 0.08, 0.008), Vector3(0, 0.045, 0))
-	k.add(mag, poly2, GunKit.box(0.05, 0.11, 0.08, 0.008), Vector3(0, -0.05, -0.012), Vector3(0.18, 0, 0))
-	for s in [-1.0, 1.0]:
-		for i in 3:
-			k.add(mag, GunKit.mat("dark"), GunKit.box(0.003, 0.004, 0.06, 0.001), Vector3(s * 0.026, 0.05 - i * 0.045, -0.004 * i))
-	k.add(mag, sky, GunKit.box(0.056, 0.016, 0.09, 0.006), Vector3(0, -0.108, -0.022), Vector3(0.18, 0, 0))
+	k.add(mag, GunKit.mat("polymer2"), GunKit.box(0.05, 0.075, 0.08, 0.008))
+	for s2 in [-1.0, 1.0]:
+		for i2 in 2:
+			k.add(mag, GunKit.mat("dark"), GunKit.box(0.003, 0.004, 0.06, 0.001), Vector3(s2 * 0.026, 0.015 - i2 * 0.03, 0))
+	k.add(mag, sky, GunKit.box(0.056, 0.016, 0.09, 0.006), Vector3(0, -0.045, 0))
 	rounds = Node3D.new()
 	rounds.name = "rounds"
 	mag.add_child(rounds)
-	k.round_at(rounds, Vector3(-0.007, 0.103, 0.028), 0.0055, 0.05)
-	k.round_at(rounds, Vector3(0.007, 0.094, 0.028), 0.0055, 0.05)
+	k.round_at(rounds, Vector3(-0.007, 0.038, 0.028), 0.0055, 0.05)
+	k.round_at(rounds, Vector3(0.007, 0.03, 0.028), 0.0055, 0.05)
 	k.bake()
 	real = true
 	casing = "rifle"

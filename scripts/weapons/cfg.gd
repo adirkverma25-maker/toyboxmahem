@@ -182,16 +182,16 @@ const WEAPONS := {
 		"casing": "pistol", "botRange": [10, 60],
 		"knockback": 9,
 	},
-	"skybolt": {
-		"id": "skybolt", "name": "SKYBOLT", "category": "Long-range assault rifle", "slotHint": 1,
-		"blurb": "Long-barrelled AR that stays accurate far out. 27 a hit, 600 RPM climb you can learn, slow to raise and best past 25 m.",
-		"damage": 27, "headMult": 1.6, "pellets": 1, "magSize": 30, "reserve": 120, "rpm": 600, "auto": true,
-		"reloadTime": 2.3, "effectiveRange": 60, "falloffEnd": 130, "minDamageMult": 0.75,
-		"adsZoom": 1.55, "adsTime": 0.26, "adsMoveMult": 0.62,
+	"tumbleweed": {
+		"id": "tumbleweed", "name": "TUMBLEWEED", "category": "Long-range assault rifle", "slotHint": 1,
+		"blurb": "Long-barrelled AR with a tiny 12-round mag. Hits for 38 at a fast 650 RPM and stays accurate far out, so three body shots drop a Light. Empties in a second.",
+		"damage": 38, "headMult": 1.6, "pellets": 1, "magSize": 12, "reserve": 60, "rpm": 650, "auto": true,
+		"reloadTime": 1.9, "effectiveRange": 60, "falloffEnd": 130, "minDamageMult": 0.75,
+		"adsZoom": 1.55, "adsTime": 0.24, "adsMoveMult": 0.65,
 		"projectile": {"kind": "hitscan", "tracer": "heavy"},
 		"spread": {"hip": 3.2, "ads": 0.18, "move": 1.6, "air": 4.0, "bloomPerShot": 0.1, "bloomMax": 1.6, "bloomDecay": 5},
 		"recoil": {"kind": "pattern",
-			"pitch": [0.9, 0.85, 0.8, 0.75, 0.7, 0.6, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
+			"pitch": [1.5, 1.4, 1.3, 1.2, 1.1, 1.0, 0.9, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8],
 			"yaw": [0.05, 0.1, 0.18, 0.2, 0.12, 0.0, -0.12, -0.2, -0.22, -0.12, 0.05, 0.15, 0.2, 0.1, -0.05, -0.15, -0.2, -0.1],
 			"loopFrom": 6, "jitter": 0.03},
 		"recoveryRate": 7, "recoveryDelay": 0.14, "adsRecoilMult": 0.55,
@@ -247,19 +247,19 @@ const WEAPON_SCOPES := {
 	"popcornPopper": ["iron", "dot", "ring", "x2", "x4"],
 	"walloper": ["iron", "dot", "ring", "x2"],
 	"sizzler": ["iron", "dot"],
-	"skybolt": ["iron", "dot", "ring", "x2", "x4"],
+	"tumbleweed": ["iron", "dot", "ring", "x2", "x4"],
 }
 
 ## Every weapon draws its own reticle shape inside whatever scope is fitted.
 const RETICLES := {
 	"plasti9": "dot", "foamFury": "chevron", "brickbreaker": "brick", "bubbleBlaster": "bubbles",
 	"thunderspring": "cross", "rapidRascal": "circleDot", "crayonCannon": "crayon", "starlightZapper": "star",
-	"jackBlaster": "jack", "plungerBow": "dot", "popcornPopper": "kernels", "walloper": "boom", "sizzler": "bubbles", "skybolt": "chevron",
+	"jackBlaster": "jack", "plungerBow": "dot", "popcornPopper": "kernels", "walloper": "boom", "sizzler": "bubbles", "tumbleweed": "chevron",
 }
 
 const WEAPON_ORDER := [
 	"plasti9", "foamFury", "brickbreaker", "bubbleBlaster", "thunderspring", "rapidRascal", "crayonCannon",
-	"starlightZapper", "jackBlaster", "plungerBow", "popcornPopper", "walloper", "sizzler", "skybolt",
+	"starlightZapper", "jackBlaster", "plungerBow", "popcornPopper", "walloper", "sizzler", "tumbleweed",
 ]
 
 const MOVE := {
@@ -292,7 +292,7 @@ const MOVE := {
 const CLASSES := {
 	"light": {
 		"name": "Light", "health": 100.0, "speed": 1.1, "melee": "sword",
-		"guns": ["rapidRascal", "bubbleBlaster", "thunderspring", "plungerBow", "starlightZapper", "plasti9", "skybolt"],
+		"guns": ["rapidRascal", "bubbleBlaster", "thunderspring", "plungerBow", "starlightZapper", "plasti9", "tumbleweed"],
 		"abilities": ["dash", "grapple"],
 		"gadgets": ["glitchJug", "stairs", "fragGrenade", "pyroGrenade", "flashbang"],
 	},

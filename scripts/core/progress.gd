@@ -14,7 +14,7 @@ const WEAPON_PRICES := {
 	"popcornPopper": 1500,
 	"walloper": 1800,
 	"sizzler": 700,
-	"skybolt": 900,
+	"tumbleweed": 900,
 }
 const TIER_COLORS := {"Starter": "#cfd8dc", "Common": "#7dff6b", "Rare": "#5ff4ff", "Epic": "#c77dff", "Legendary": "#ffd23f"}
 

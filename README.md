@@ -51,7 +51,7 @@ Walls, cover and glass can be shot and blown apart: blast your own way into a bu
 
 Pick a class in **Loadout**:
 
-- **Light:** 100 health and faster. Blasters: Rapid Rascal, Bubble Blaster, Thunderspring, Plunger Longbow, Starlight Zapper, Plasti-9, Skybolt (a long-range assault rifle), or the Toy Sword instead. Ability: Wind-Up Dash or Spring Hook. Gadget: Frag Grenade, Pyro Grenade, Flashbang, Glitch Jug or Pop-up Stairs.
+- **Light:** 100 health and faster. Blasters: Rapid Rascal, Bubble Blaster, Thunderspring, Plunger Longbow, Starlight Zapper, Plasti-9, Tumbleweed (a long-range, small-mag, hard-hitting rifle), or the Toy Sword instead. Ability: Wind-Up Dash or Spring Hook. Gadget: Frag Grenade, Pyro Grenade, Flashbang, Glitch Jug or Pop-up Stairs.
 - **Medium:** 150 health but slower. Blasters: Foam Fury, Brickbreaker, Popcorn Popper, Crayon Cannon, Jack-in-the-Blaster, Walloper, Sizzler (a burning shotgun), or the Toy Spear instead. Ability: Mesh Shield or Cloak. Gadget: Explosive Mine, Pyro Mine, Turret, Health Infuser or Breach Drill.
 
 You carry one weapon, one ability and one gadget.

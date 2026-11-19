@@ -35,7 +35,7 @@ func _run() -> void:
 	var L: Dictionary = Cfg.CLASSES.light
 	var M: Dictionary = Cfg.CLASSES.medium
 	check(Cfg.CLASS_ORDER == ["light", "medium"]
-		and L.guns == ["rapidRascal", "bubbleBlaster", "thunderspring", "plungerBow", "starlightZapper", "plasti9", "skybolt"]
+		and L.guns == ["rapidRascal", "bubbleBlaster", "thunderspring", "plungerBow", "starlightZapper", "plasti9", "tumbleweed"]
 		and M.guns == ["foamFury", "brickbreaker", "popcornPopper", "crayonCannon", "jackBlaster", "walloper", "sizzler"]
 		and L.abilities == ["dash", "grapple"] and M.abilities == ["shield", "cloak"]
 		and L.gadgets == ["glitchJug", "stairs", "fragGrenade", "pyroGrenade", "flashbang"]

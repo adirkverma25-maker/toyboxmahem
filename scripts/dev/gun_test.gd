@@ -12,7 +12,7 @@ static func run(g, only := "") -> void:
 			shots = a.trim_prefix("--shots=")
 	await tree.create_timer(1.0).timeout
 	var bad := 0
-	var ids: Array = [only] if only != "" else ["plasti9", "foamFury", "brickbreaker", "rapidRascal", "jackBlaster", "sizzler", "skybolt", "popcornPopper", "walloper", "bubbleBlaster", "thunderspring", "crayonCannon"]
+	var ids: Array = [only] if only != "" else ["plasti9", "foamFury", "brickbreaker", "rapidRascal", "jackBlaster", "sizzler", "tumbleweed", "popcornPopper", "walloper", "bubbleBlaster", "thunderspring", "crayonCannon"]
 	for wid in ids:
 		g.start_match("normal", "training")
 		g.training_gun = wid
