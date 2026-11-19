@@ -571,7 +571,8 @@ func _autotest() -> void:
 	print("[traversal] pads used %d, ziplines used %d" % [traversal.uses.pad, traversal.uses.zip])
 	if m == "training":
 		var pa := player.actor
-		print("[training] pops %d headshots %d hits %d/%d reserve %d/%d" % [pa.kills, pa.headshots, pa.shots_hit, pa.shots_fired, pa.weapon().reserve, pa.weapon().cfg.reserve])
+		var tw := pa.weapon()
+		print("[training] pops %d headshots %d hits %d/%d reserve %s" % [pa.kills, pa.headshots, pa.shots_hit, pa.shots_fired, ("%d/%d" % [tw.reserve, tw.cfg.reserve]) if tw else "melee"])
 	var kills := 0
 	var alive := 0
 	for a in actors:

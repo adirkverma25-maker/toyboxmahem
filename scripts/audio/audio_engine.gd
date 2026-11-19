@@ -15,7 +15,7 @@ const ZONE_LOOPS := [
 	["brick", "white", "bandpass", 5000.0, 0.015],
 	["rug", "pink", "lowpass", 400.0, 0.03],
 ]
-const RELOAD_PITCH := {"plasti9": 1.25, "foamFury": 1.0, "brickbreaker": 0.8, "bubbleBlaster": 1.1, "thunderspring": 0.9, "rapidRascal": 1.15, "crayonCannon": 0.7, "starlightZapper": 1.3, "jackBlaster": 0.95, "plungerBow": 1.1, "popcornPopper": 1.2, "walloper": 0.7, "sizzler": 0.9}
+const RELOAD_PITCH := {"plasti9": 1.25, "foamFury": 1.0, "brickbreaker": 0.8, "bubbleBlaster": 1.1, "thunderspring": 0.9, "rapidRascal": 1.15, "crayonCannon": 0.7, "starlightZapper": 1.3, "jackBlaster": 0.95, "plungerBow": 1.1, "popcornPopper": 1.2, "walloper": 0.7, "sizzler": 0.9, "tumbleweed": 1.0}
 const PICKUP_NOTES := {"health": [523, 659, 784], "shield": [392, 587, 784, 1175], "turbo": [440, 554, 659, 880], "infinite": [659, 523, 659, 880], "power": [523, 784, 1047, 1568], "weapon": [330, 494], "ammo": [660, 880]}
 
 var music: Music = null
@@ -385,6 +385,12 @@ static func _r_gunshot(w: String) -> Array:
 			o.append(_T("triangle", 420 * p, 120, 0, 0.09, _E(0.001, 0.1, 0.5)))
 			o.append(_N("pink", "lowpass", 500, 0.6, 0.08, _E(0.02, 0.6, 0.45), 120))
 			o.append(_C(0.3, 2400 + variant * 200, 0.3))
+		"tumbleweed":
+			o.append(_N("brown", "lowpass", 1000 * p, 0.7, 0, _E(0.001, 0.32, 2.0), 180))
+			o.append(_N("white", "bandpass", 3400 * p, 0.9, 0, _E(0.001, 0.05, 1.2)))
+			o.append(_T("sine", 90 * p, 34, 0, 0.26, _E(0.002, 0.3, 1.6)))
+			o.append(_T("triangle", 520 * p, 160, 0, 0.07, _E(0.001, 0.08, 0.45)))
+			o.append(_N("pink", "lowpass", 600, 0.6, 0.06, _E(0.02, 0.5, 0.4), 140))
 		"sizzler":
 			o.append(_N("brown", "lowpass", 1300 * p, 0.8, 0, _E(0.001, 0.22, 1.8), 280))
 			o.append(_T("sine", 85 * p, 36, 0, 0.2, _E(0.002, 0.22, 1.5)))
@@ -481,6 +487,13 @@ static func _r_reload(w: String, part: String) -> Array:
 			o.append(_N("white", "bandpass", 2000 * pitch, 2, 0, _E(0.01, 0.09, 0.4), 3500 * pitch))
 			o.append(_C(0.1, 3800 * pitch, 0.6))
 			o.append(_T("triangle", 700 * pitch, 1200 * pitch, 0.1, 0.12, _E(0.002, 0.15, 0.12)))
+		"eject":
+			o.append(_C(0, 2200 * pitch, 0.5, 0.02))
+			for i in 6:
+				var tt := 0.12 + i * U.rand(0.03, 0.06)
+				var f := U.rand(4300, 5600)
+				o.append(_T("sine", f, f * 0.99, tt, 0.06, _E(0.001, 0.07, 0.16)))
+				o.append(_T("sine", f * 1.5, f * 1.5, tt, 0.04, _E(0.001, 0.05, 0.07)))
 		"drop":
 			o.append(_N("pink", "lowpass", 700 * pitch, 1.0, 0, _E(0.002, 0.08, 0.6)))
 			o.append(_C(0.0, 2100 * pitch, 0.45, 0.02))

@@ -8,13 +8,14 @@ const RELOAD_BEATS := {
 	"plasti9": [[0.12, "out"], [0.3, "drop"], [0.55, "in"], [0.82, "charge"]],
 	"foamFury": [[0.12, "out"], [0.3, "drop"], [0.5, "in"], [0.78, "charge"]],
 	"brickbreaker": [[0.15, "out"], [0.32, "drop"], [0.52, "in"], [0.8, "charge"]],
-	"thunderspring": [[0.1, "out"], [0.4, "in"], [0.62, "spring"]],
+	"thunderspring": [[0.1, "out"], [0.25, "drop"], [0.45, "in"], [0.72, "charge"]],
 	"rapidRascal": [[0.14, "out"], [0.32, "drop"], [0.55, "in"], [0.85, "charge"]],
-	"crayonCannon": [[0.15, "out"], [0.55, "in"], [0.82, "charge"]],
+	"crayonCannon": [[0.15, "out"], [0.33, "drop"], [0.55, "in"], [0.82, "charge"]],
 	"jackBlaster": [[0.12, "out"], [0.3, "drop"], [0.5, "in"], [0.8, "charge"]],
 	"plungerBow": [[0.15, "out"], [0.55, "in"], [0.85, "charge"]],
-	"popcornPopper": [[0.12, "out"], [0.52, "in"], [0.8, "charge"]],
-	"walloper": [[0.12, "out"], [0.5, "in"], [0.82, "charge"]],
+	"popcornPopper": [[0.12, "out"], [0.3, "drop"], [0.52, "in"], [0.8, "charge"]],
+	"walloper": [[0.12, "out"], [0.3, "drop"], [0.5, "in"], [0.82, "charge"]],
+	"tumbleweed": [[0.1, "open"], [0.22, "eject"], [0.62, "in"], [0.85, "close"]],
 }
 
 var id: String

@@ -48,6 +48,10 @@ var _dropped := false
 var _casings := {}
 var _flying: Array = []
 var hand_shell: Node3D = null
+var speedloader: Node3D = null
+## revolver: how far the muzzle is tipped up to dump the empties; bolt action: last cycle point (for the casing)
+var _rev_tip := 0.0
+var _prev_bolt_k := 0.0
 
 
 ## semi-implicit damped spring [x, v], sub-stepped for frame-rate independence
@@ -172,8 +176,12 @@ func set_optic(kind: String) -> void:
 	if optic:
 		optic.queue_free()
 		optic = null
+	if current and current.parts.has("scope"):
+		(current.parts.scope as Node3D).visible = true
 	if current == null or current_id == "" or (kind != "dot" and kind != "ring"):
 		return
+	if current.parts.has("scope"):
+		(current.parts.scope as Node3D).visible = false  # a small optic replaces the long scope
 	var c: Dictionary = Cfg.WEAPONS[current_id].colors
 	optic = WeaponModel.build_optic(kind, -current.ads_offset.y, c.accent, c.main)
 	optic.position.z = current.ads_offset.z * 0.5 - 0.02
@@ -214,6 +222,10 @@ func set_weapon(id: String, instant := false) -> void:
 	if hand_shell:
 		hand_shell.queue_free()
 		hand_shell = null
+	if speedloader:
+		speedloader.queue_free()
+		speedloader = null
+	_rev_tip = 0.0
 	if id == "":
 		return
 	var m := _get_model(id)
@@ -274,8 +286,12 @@ func on_fire(id: String, ads: bool, reduced: bool) -> void:
 		p.chamber.rotation.z += PI / 3
 	if p.has("wheel"):
 		p.wheel.rotation.x += TAU / 5
-	if current.real and current.eject and current.casing != "":
+	if current.real and current.eject and current.casing != "" and not current.bolt_action:
 		_throw_casing(current.casing)
+	if p.has("cylinder"):
+		(p.cylinder as Node3D).rotation.z += TAU / 6
+	if current.bolt_action:
+		bolt_t = 1
 	if id == "thunderspring":
 		bolt_t = 1
 	if id == "jackBlaster":
@@ -289,6 +305,8 @@ func on_land(strength: float) -> void:
 func update(dt: float, c: Dictionary) -> void:
 	time += dt
 	_update_flying(dt)
+	if current and current.bolt_action:
+		bolt_t = maxf(0, bolt_t - dt * 1.8)
 	var m := current
 	if m == null:
 		return
@@ -354,7 +372,7 @@ func update(dt: float, c: Dictionary) -> void:
 		var tilt := [0.2, -0.1, 0.55]
 		if m.real:
 			# real guns roll the other way: magwell / loading port turned toward you, pulled in to the middle
-			tilt = [0.28, 0.32, -0.6]
+			tilt = [0.28 + _rev_tip * 0.9, 0.32, -0.6 + _rev_tip * 0.3]
 			pos.x -= 0.05 * rv
 			pos.y += 0.035 * rv
 		match current_id if not m.real else "":
@@ -589,6 +607,10 @@ func _real_reload(ws: WeaponState, rf: float, rv: float, c: Dictionary) -> void:
 			hand_rot = Vector3(1.0, 0, 0.2)
 		else:
 			hand = pouch.lerp(lg, U.smoothstep(0, 1, t))
+	elif reloading and m.revolver:
+		_revolver_reload(rf)
+		hand = _rev_hand
+		hand_rot = Vector3(1.0, 0, 0.2)
 	elif reloading and p.has("mag"):
 		var mag: Node3D = p.mag
 		var r: Transform3D = m.rest.mag
@@ -640,12 +662,38 @@ func _real_reload(ws: WeaponState, rf: float, rv: float, c: Dictionary) -> void:
 	elif p.has("mag"):
 		(p.mag as Node3D).visible = true
 		(p.mag as Node3D).transform = m.rest.mag
-	if m.rounds:
+	if m.revolver and not reloading:
+		(p.crane as Node3D).rotation.z = 0.0
+		_rev_tip = 0.0
+		if speedloader:
+			speedloader.visible = false
+	if m.rounds and not (reloading and m.revolver):
 		m.rounds.visible = true
+	if not reloading:
+		_prev_rf = 0.0
+	# pump action: the pump racks back and forward after each shot (the left hand rides it)
+	if p.has("pump") and m.rest.has("pump"):
+		var pz := (1 - fire_anim) * 0.08 if fire_anim > 0.2 else fire_anim * 0.3
+		(p.pump as Node3D).position = m.rest.pump.origin + Vector3(0, 0, pz)
+		if not reloading:
+			hand = lg + Vector3(0, 0, pz)
 	# slide / charging handle / bolt: cycles on each shot, locks back on an empty gun
 	var fire_back := fire_anim * 0.045
 	var locked: bool = empty and not (reloading and not ws.cfg.has("reloadPerShell") and rf >= _beat("charge", 0.82))
-	if p.has("charge") and m.rest.has("charge"):
+	if m.bolt_action and p.has("charge"):
+		var bk := clampf((1 - bolt_t - 0.15) / 0.85, 0, 1) if bolt_t > 0 else 0.0
+		if reloading and not ws.cfg.has("reloadPerShell"):
+			var b_ch := _beat("charge", 0.72)
+			bk = maxf(bk, U.smoothstep(b_ch - 0.14, b_ch + 0.06, rf) * (1.0 if rf < b_ch + 0.08 else 0.0))
+		if _prev_bolt_k < 0.45 and bk >= 0.45 and m.eject:
+			_throw_casing(m.casing)
+		_prev_bolt_k = bk
+		var up := U.smoothstep(0, 0.2, bk) * (1 - U.smoothstep(0.8, 1, bk))
+		var back := U.smoothstep(0.2, 0.45, bk) * (1 - U.smoothstep(0.55, 0.8, bk))
+		var ch: Node3D = p.charge
+		ch.rotation.z = up * 1.1
+		ch.position = m.rest.charge.origin + Vector3(0, 0, back * 0.09)
+	elif p.has("charge") and m.rest.has("charge"):
 		var z := pull * 0.07
 		if m.charge_cycles:
 			z = maxf(z, maxf(fire_back, 0.05 if locked else 0.0))
@@ -657,6 +705,73 @@ func _real_reload(ws: WeaponState, rf: float, rv: float, c: Dictionary) -> void:
 	hand_l.position = lg.lerp(hand, k2)
 	hand_l.rotation = hand_rot * k2
 
+
+var _rev_hand := Vector3.ZERO
+
+
+## Revolver: swing the cylinder out, tip the muzzle up and punch the six empties out, bring a speedloader up,
+## drop six fresh rounds in, flick the cylinder shut.
+func _revolver_reload(rf: float) -> void:
+	var m := current
+	var p := m.parts
+	var crane: Node3D = p.crane
+	var cyl: Node3D = p.cylinder
+	var lg := m.left_grip
+	var pouch := lg + Vector3(-0.12, -0.6, -0.02)
+	var b_open := _beat("open", 0.1)
+	var b_ej := _beat("eject", 0.22)
+	var b_in := _beat("in", 0.62)
+	var b_close := _beat("close", 0.85)
+	crane.rotation.z = U.smoothstep(b_open - 0.06, b_open + 0.04, rf) * (1 - U.smoothstep(b_close - 0.04, b_close + 0.01, rf)) * 1.25
+	var cyl_at: Vector3 = crane.transform * cyl.position
+	_rev_tip = U.smoothstep(b_ej - 0.1, b_ej - 0.02, rf) * (1 - U.smoothstep(b_ej + 0.06, b_ej + 0.14, rf))
+	if _prev_rf < b_ej and rf >= b_ej:
+		_eject_cylinder(cyl_at)
+	m.rounds.visible = rf < b_ej or rf >= b_in
+	_ensure_speedloader()
+	speedloader.visible = rf >= b_in - 0.24 and rf < b_in
+	var at_cyl := cyl_at + Vector3(-0.02, -0.03, 0.03)
+	var behind := cyl_at + Vector3(0, 0, 0.09)
+	if rf < b_open:
+		_rev_hand = lg.lerp(at_cyl, U.smoothstep(0, b_open, rf))
+	elif rf < b_ej + 0.06:
+		_rev_hand = at_cyl
+	elif rf < b_in - 0.24:
+		_rev_hand = at_cyl.lerp(pouch, U.smoothstep(b_ej + 0.06, b_in - 0.26, rf))
+	elif rf < b_in:
+		_rev_hand = pouch.lerp(behind, U.smoothstep(b_in - 0.24, b_in, rf))
+	elif rf < b_close:
+		_rev_hand = behind.lerp(at_cyl, U.smoothstep(b_in, b_close - 0.04, rf))
+	else:
+		_rev_hand = at_cyl.lerp(lg, U.smoothstep(b_close, 1.0, rf))
+	if _prev_rf < b_close and rf >= b_close:
+		kick_rot[1] += 1.2  # flicked shut
+	_prev_rf = rf
+
+
+func _ensure_speedloader() -> void:
+	if speedloader:
+		return
+	speedloader = Node3D.new()
+	var k := GunKit.new()
+	k.add(speedloader, GunKit.mat("polymer"), GunKit.tube(0.03, 0.014, 12), Vector3(0, 0, 0.012))
+	k.add(speedloader, GunKit.mat("polymer"), GunKit.tube(0.008, 0.03, 8), Vector3(0, 0, 0.03))
+	for i in 6:
+		var a := float(i) / 6 * TAU
+		k.round_at(speedloader, Vector3(cos(a) * 0.021, sin(a) * 0.021, 0.004), 0.008, 0.04)
+	k.bake()
+	speedloader.position = Vector3(0.0, 0.06, -0.03)
+	speedloader.visible = false
+	hand_l.add_child(speedloader)
+
+
+## Six empties drop out of the swung-out cylinder.
+func _eject_cylinder(cyl_at: Vector3) -> void:
+	var xf := holder.transform * current.transform
+	for i in 6:
+		var a := float(i) / 6 * TAU
+		var lp := cyl_at + Vector3(cos(a) * 0.021, sin(a) * 0.021, 0.045)
+		_launch_casing("pistol", xf * lp, xf.basis * Vector3(U.rand(-0.3, 0.3), U.rand(-1.2, -0.4), U.rand(0.6, 1.4)), xf.basis)
 
 ## Throw a copy of the magazine out of the gun: it falls away and disappears.
 func _drop_mag(was_empty: bool) -> void:
@@ -715,6 +830,15 @@ func _throw_casing(kind: String) -> void:
 	n.visible = true
 	var v: Vector3 = xf.basis * Vector3(U.rand(2.6, 3.6), U.rand(2.0, 3.0), U.rand(0.4, 1.2))
 	_flying.append([n, v, Vector3(U.rand(-25, 25), U.rand(-15, 15), U.rand(-25, 25)), 0.55, false])
+
+
+func _launch_casing(kind: String, pos: Vector3, v: Vector3, basis: Basis) -> void:
+	var n := _casing_node(kind)
+	if n == null:
+		return
+	n.transform = Transform3D(basis, pos)
+	n.visible = true
+	_flying.append([n, v, Vector3(U.rand(-12, 12), U.rand(-8, 8), U.rand(-12, 12)), 0.7, false])
 
 
 func _update_flying(dt: float) -> void:

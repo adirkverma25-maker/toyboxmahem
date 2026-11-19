@@ -63,7 +63,7 @@ const WEAPONS := {
 		"recoveryRate": 9.5, "recoveryDelay": 0.05, "adsRecoilMult": 0.85,
 		"kick": {"back": 0.16, "up": 0.12, "roll": 0.06, "shake": 0.18},
 		"colors": {"main": "#9b5de5", "accent": "#f15bb5", "glow": "#c77dff", "tracer": "#e0aaff"},
-		"botRange": [0, 10],
+		"casing": "shell", "botRange": [0, 10],
 	},
 	"thunderspring": {
 		"id": "thunderspring", "name": "THUNDERSPRING", "category": "Quick-scope spring sniper", "slotHint": 1,
@@ -165,7 +165,7 @@ const WEAPONS := {
 		"recoveryRate": 9, "recoveryDelay": 0.1, "adsRecoilMult": 0.7,
 		"kick": {"back": 0.04, "up": 0.03, "roll": 0.02, "shake": 0.05},
 		"colors": {"main": "#ffd23f", "accent": "#e63946", "glow": "#fff3b0", "tracer": "#fff3b0"},
-		"botRange": [8, 40],
+		"casing": "rifle", "botRange": [8, 40],
 	},
 	"walloper": {
 		"id": "walloper", "name": "WALLOPER", "category": "Heavy marksman pistol", "slotHint": 2,
@@ -179,8 +179,22 @@ const WEAPONS := {
 		"recoveryRate": 9, "recoveryDelay": 0.12, "adsRecoilMult": 0.85,
 		"kick": {"back": 0.32, "up": 0.3, "roll": 0.14, "shake": 0.38},
 		"colors": {"main": "#7b2cbf", "accent": "#ffd23f", "glow": "#ffe8a3", "tracer": "#ffd23f"},
-		"botRange": [10, 60],
+		"casing": "pistol", "botRange": [10, 60],
 		"knockback": 9,
+	},
+	"tumbleweed": {
+		"id": "tumbleweed", "name": "TUMBLEWEED", "category": "Six-shot revolver", "slotHint": 2,
+		"blurb": "Six heavy rounds: 48 a hit, 96 to the head. Slow to fire, quick to aim, and a speedloader reload.",
+		"damage": 48, "headMult": 2.0, "pellets": 1, "magSize": 6, "reserve": 36, "rpm": 150, "auto": false,
+		"reloadTime": 2.6, "effectiveRange": 30, "falloffEnd": 60, "minDamageMult": 0.6,
+		"adsZoom": 1.25, "adsTime": 0.15, "adsMoveMult": 0.85,
+		"projectile": {"kind": "hitscan", "tracer": "heavy"},
+		"spread": {"hip": 1.4, "ads": 0.15, "move": 1.0, "air": 2.5, "bloomPerShot": 0.6, "bloomMax": 2.4, "bloomDecay": 5},
+		"recoil": {"kind": "random", "pitch": 3.0, "pitchGrowth": 0, "pitchMax": 3.0, "yaw": 0.4, "yawGrowth": 0, "yawBias": 0.1},
+		"recoveryRate": 9, "recoveryDelay": 0.1, "adsRecoilMult": 0.8,
+		"kick": {"back": 0.12, "up": 0.16, "roll": 0.06, "shake": 0.14},
+		"colors": {"main": "#8f959c", "accent": "#2ec4b6", "glow": "#ffe8a3", "tracer": "#ffd23f"},
+		"botRange": [4, 30],
 	},
 	"sizzler": {
 		"id": "sizzler", "name": "SIZZLER", "category": "Burning semi-auto shotgun", "slotHint": 1,
@@ -230,18 +244,19 @@ const WEAPON_SCOPES := {
 	"popcornPopper": ["iron", "dot", "ring", "x2", "x4"],
 	"walloper": ["iron", "dot", "ring", "x2"],
 	"sizzler": ["iron", "dot"],
+	"tumbleweed": ["iron", "dot"],
 }
 
 ## Every weapon draws its own reticle shape inside whatever scope is fitted.
 const RETICLES := {
 	"plasti9": "dot", "foamFury": "chevron", "brickbreaker": "brick", "bubbleBlaster": "bubbles",
 	"thunderspring": "cross", "rapidRascal": "circleDot", "crayonCannon": "crayon", "starlightZapper": "star",
-	"jackBlaster": "jack", "plungerBow": "dot", "popcornPopper": "kernels", "walloper": "boom", "sizzler": "bubbles",
+	"jackBlaster": "jack", "plungerBow": "dot", "popcornPopper": "kernels", "walloper": "boom", "sizzler": "bubbles", "tumbleweed": "dot",
 }
 
 const WEAPON_ORDER := [
 	"plasti9", "foamFury", "brickbreaker", "bubbleBlaster", "thunderspring", "rapidRascal", "crayonCannon",
-	"starlightZapper", "jackBlaster", "plungerBow", "popcornPopper", "walloper", "sizzler",
+	"starlightZapper", "jackBlaster", "plungerBow", "popcornPopper", "walloper", "sizzler", "tumbleweed",
 ]
 
 const MOVE := {
@@ -274,7 +289,7 @@ const MOVE := {
 const CLASSES := {
 	"light": {
 		"name": "Light", "health": 100.0, "speed": 1.1, "melee": "sword",
-		"guns": ["rapidRascal", "bubbleBlaster", "thunderspring", "plungerBow", "starlightZapper", "plasti9"],
+		"guns": ["rapidRascal", "bubbleBlaster", "thunderspring", "plungerBow", "starlightZapper", "plasti9", "tumbleweed"],
 		"abilities": ["dash", "grapple"],
 		"gadgets": ["glitchJug", "stairs", "fragGrenade", "pyroGrenade", "flashbang"],
 	},
