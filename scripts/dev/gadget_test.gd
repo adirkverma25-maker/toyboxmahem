@@ -82,20 +82,40 @@ static func run(g) -> void:
 		print("[gadget] frag vs wall: broken after one %s, after two %s" % [after_one, D.is_broken(panel)])
 		if not after_one:  # one frag blows a hole in the wall it hits
 			bad += 1
-	# turret: set it down facing a dummy, it should shoot it
-	pa.teleport(Vector3(0, 0.3, 12))
+	# turret: set it down facing a dummy; count only its own bullets (old fire patches are cleared first)
+	g.combat._fires.clear()
+	pa.teleport(Vector3(14, 0.3, 12))
 	pa.yaw = 0
 	pa.pitch = 0
 	dummy.health = dummy.max_health
 	dummy.shield = 0
 	await tree.process_frame
+	var tur := [0.0]
+	g.events.on("damage", func(e): if e.weapon == "turret": tur[0] += e.amount)
 	g.combat.throw_gadget(pa, "turret", pa.eye_pos(), Vector3(0, 0, -1))
-	var thp: float = dummy.health
-	for i in 150:
-		dummy.teleport(Vector3(0, 0.3, 2))
+	var tt0: float = g.time
+	while g.time - tt0 < 2.5:
+		dummy.teleport(Vector3(14, 0.3, 3))
+		dummy.health = maxf(dummy.health, 50)
 		await tree.process_frame
-	print("[gadget] turret: dummy lost %.0f" % (thp - dummy.health))
-	if thp - dummy.health <= 0:
+	print("[gadget] turret: its bullets did %.0f in 2.5 s" % tur[0])
+	if tur[0] <= 0:
+		bad += 1
+	# launch pad: step on it and fly
+	pa.teleport(Vector3(-14, 0.3, 12))
+	pa.yaw = 0
+	await tree.process_frame
+	g.combat.throw_gadget(pa, "launchPad", pa.eye_pos(), Vector3(0, 0, -1))
+	await tree.process_frame
+	var pad_at: Vector3 = g.combat._deployed[g.combat._deployed.size() - 1].pos
+	dummy.teleport(pad_at + Vector3(0, 0.05, 0))
+	var flew := 0.0
+	var pt0: float = g.time
+	while g.time - pt0 < 1.2:
+		await tree.process_frame
+		flew = maxf(flew, dummy.pos.y - pad_at.y)
+	print("[gadget] launch pad: flew %.1f m up" % flew)
+	if flew < 3.0:
 		bad += 1
 	# stairs: there's a step to stand on in front of you
 	pa.teleport(Vector3(-8, 0.3, 12))
@@ -137,12 +157,16 @@ static func run(g) -> void:
 			dummy.health = dummy.max_health
 			dummy.flashed_until = 0
 			dummy.yaw = 0
+			for i in 10:  # the toy is already standing behind the wall when the drill is fired
+				dummy.teleport(Vector3(behind.x, fl.point.y + 0.05, behind.z))
+				await tree.process_frame
 			g.combat.throw_gadget(pa, "breachDrill", from, Vector3(0, 0, -side))
 			var t0: float = g.time
+			var flashed := false
 			while g.time - t0 < 2.6:
 				dummy.teleport(Vector3(behind.x, fl.point.y + 0.05, behind.z))
 				await tree.process_frame
-			var flashed: bool = dummy.flashed_until > g.time
+				flashed = flashed or dummy.flashed_until > g.time
 			print("[gadget] breach drill: wall broken %s, toy behind it flashed %s" % [Dd.is_broken(p.id), flashed])
 			if not Dd.is_broken(p.id) or not flashed:
 				bad += 1

@@ -12,7 +12,7 @@ const PERSONALITIES := {
 	"boltBuddy": {"aggression": 0.6, "caution": 0.4, "jumpiness": 0.6, "speed": 1.1, "favorite": ["starlightZapper", "foamFury"], "dashUse": 0.5, "headshotBias": 0.2},
 	"princessPanic": {"aggression": 0.7, "caution": 0.3, "jumpiness": 0.95, "speed": 1.04, "favorite": ["foamFury", "rapidRascal"], "dashUse": 0.5, "headshotBias": 0.15},
 	"turboTim": {"aggression": 0.75, "caution": 0.3, "jumpiness": 0.6, "speed": 1.12, "favorite": ["rapidRascal", "bubbleBlaster", "jackBlaster"], "dashUse": 0.9, "headshotBias": 0.15},
-	"mechaMax": {"aggression": 0.25, "caution": 0.85, "jumpiness": 0.1, "speed": 0.95, "favorite": ["thunderspring", "brickbreaker", "plungerBow"], "dashUse": 0.2, "headshotBias": 0.45},
+	"mechaMax": {"aggression": 0.25, "caution": 0.85, "jumpiness": 0.1, "speed": 0.95, "favorite": ["thunderspring", "brickbreaker", "plungerBow", "slingshot"], "dashUse": 0.2, "headshotBias": 0.45},
 	"blockhead": {"aggression": 0.55, "caution": 0.45, "jumpiness": 0.35, "speed": 1.0, "favorite": ["crayonCannon", "brickbreaker"], "dashUse": 0.3, "headshotBias": 0.1},
 	"sergeantSnap": {"aggression": 0.45, "caution": 0.6, "jumpiness": 0.25, "speed": 1.0, "favorite": ["popcornPopper", "jackBlaster"], "dashUse": 0.3, "headshotBias": 0.35},
 	"dinaMite": {"aggression": 0.9, "caution": 0.2, "jumpiness": 0.55, "speed": 1.04, "favorite": ["crayonCannon", "bubbleBlaster", "sizzler"], "dashUse": 0.7, "headshotBias": 0.1},
@@ -539,7 +539,7 @@ func _use_abilities(now: float) -> void:
 				if dist > 8 and dist < 26:
 					Abilities.try_gadget(a, now, deps)
 			elif gc.has("deploy"):
-				pass  # stairs: bots don't plan climbs
+				pass  # stairs / launch pads: bots don't plan climbs
 			elif dist > 7 and dist < 24 and facing > 0.9:
 				Abilities.try_gadget(a, now, deps)
 		if now >= _ability_check_at:

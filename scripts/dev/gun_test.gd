@@ -32,8 +32,24 @@ static func run(g, only := "") -> void:
 		var ws: WeaponState = pa.weapon()
 		if shots != "":
 			g._shot(shots.path_join("gun_%s_idle.png" % wid))
-		# fire until empty (casings), photographing one just after a shot
 		var fire_key: String = Binds.kb["fire"][0]
+		if ws.cfg.has("charge"):
+			# draw weapons: hold for a full pull, let go, one shot leaves
+			var m0: float = ws.mag
+			g.input._pressed[fire_key] = true
+			var dt0: float = g.time
+			while g.time - dt0 < float(ws.cfg.charge.time) + 0.1:
+				g.input._down[fire_key] = true
+				await tree.process_frame
+			if shots != "":
+				g._shot(shots.path_join("gun_%s_drawn.png" % wid))
+			g.input._down.erase(fire_key)
+			for i in 5:
+				await tree.process_frame
+			print("[gun] %s: full draw and release fired %d" % [wid, int(m0 - ws.mag)])
+			if m0 - ws.mag != 1:
+				bad += 1
+		# fire until empty (casings), photographing one just after a shot
 		var n := 0
 		while ws.mag > 0 and n < 400:
 			g.input._pressed[fire_key] = true
@@ -167,6 +183,13 @@ static func run(g, only := "") -> void:
 				first = hp0 - dummy.health
 		print("[gun] sizzler at 10 m: shot %.0f, total %.0f (no burn)" % [first, hp0 - dummy.health])
 		if absf((hp0 - dummy.health) - first) > 0.5:
+			bad += 1
+	# bow and slingshot: no spread at all, moving, jumping or aiming
+	for cid in ["plungerBow", "slingshot"]:
+		var cw := WeaponState.new(cid)
+		var worst := maxf(cw.spread(0.0, 1.3, true), cw.spread(1.0, 1.3, true))
+		print("[gun] %s spread: %.2f deg at worst" % [cid, worst])
+		if worst > 0.0:
 			bad += 1
 	print("[gun] %d failures" % bad)
 	tree.quit(bad)

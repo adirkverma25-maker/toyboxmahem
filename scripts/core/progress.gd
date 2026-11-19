@@ -15,6 +15,7 @@ const WEAPON_PRICES := {
 	"walloper": 1800,
 	"sizzler": 700,
 	"tumbleweed": 900,
+	"slingshot": 600,
 }
 const TIER_COLORS := {"Starter": "#cfd8dc", "Common": "#7dff6b", "Rare": "#5ff4ff", "Epic": "#c77dff", "Legendary": "#ffd23f"}
 

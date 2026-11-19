@@ -139,13 +139,13 @@ const WEAPONS := {
 	},
 	"plungerBow": {
 		"id": "plungerBow", "name": "PLUNGER LONGBOW", "category": "Charge bow", "slotHint": 1,
-		"blurb": "Hold to draw, release to fire a suction-cup arrow. A tap barely tickles; a full 1-second draw does 80, and 128 to the head.",
+		"blurb": "Hold to draw, release to fire a suction-cup arrow. A tap barely tickles; a full 1-second draw does 80, and 128 to the head. No spread: the arrow goes exactly where you aim.",
 		"damage": 80, "headMult": 1.6, "pellets": 1, "magSize": 12, "reserve": 24, "rpm": 75, "auto": false,
 		"reloadTime": 2.2, "effectiveRange": 999, "falloffEnd": 999, "minDamageMult": 1,
 		"adsZoom": 1.6, "adsTime": 0.25, "adsMoveMult": 0.7,
 		"projectile": {"kind": "projectile", "visual": "arrow", "speed": 260, "gravity": 2.5, "radius": 0.08, "life": 6},
 		"charge": {"time": 1.0, "curve": 1.8, "minSpeed": 90, "maxSpeed": 260, "moveMult": 0.72},
-		"spread": {"hip": 0.7, "ads": 0.1, "move": 0.6, "air": 2, "bloomPerShot": 0, "bloomMax": 0, "bloomDecay": 5},
+		"spread": {"hip": 0, "ads": 0, "move": 0, "air": 0, "bloomPerShot": 0, "bloomMax": 0, "bloomDecay": 5},
 		"recoil": {"kind": "random", "pitch": 0.8, "pitchGrowth": 0, "pitchMax": 0.8, "yaw": 0.2, "yawGrowth": 0, "yawBias": 0},
 		"recoveryRate": 8, "recoveryDelay": 0.05, "adsRecoilMult": 0.8,
 		"kick": {"back": 0.06, "up": 0.02, "roll": 0.02, "shake": 0.06},
@@ -197,6 +197,21 @@ const WEAPONS := {
 		"colors": {"main": "#4cc9f0", "accent": "#ff8c1a", "glow": "#bff4ff", "tracer": "#7fdcff"},
 		"casing": "pistol", "botRange": [3, 22],
 	},
+	"slingshot": {
+		"id": "slingshot", "name": "PEBBLE PINGER", "category": "Charge slingshot", "slotHint": 1,
+		"blurb": "Pull back and let go. Quicker than the bow: a full 0.45 s pull does 45 (72 to the head) and you can fire again fast. No spread at all, so the pebble goes exactly where you aim.",
+		"damage": 45, "headMult": 1.6, "pellets": 1, "magSize": 20, "reserve": 40, "rpm": 150, "auto": false,
+		"reloadTime": 1.6, "effectiveRange": 999, "falloffEnd": 999, "minDamageMult": 1,
+		"adsZoom": 1.5, "adsTime": 0.18, "adsMoveMult": 0.8,
+		"projectile": {"kind": "projectile", "visual": "pebble", "speed": 170, "gravity": 2.0, "radius": 0.06, "life": 4},
+		"charge": {"time": 0.45, "curve": 1.4, "minSpeed": 80, "maxSpeed": 170, "moveMult": 0.85},
+		"spread": {"hip": 0, "ads": 0, "move": 0, "air": 0, "bloomPerShot": 0, "bloomMax": 0, "bloomDecay": 5},
+		"recoil": {"kind": "random", "pitch": 0.4, "pitchGrowth": 0, "pitchMax": 0.4, "yaw": 0.1, "yawGrowth": 0, "yawBias": 0},
+		"recoveryRate": 9, "recoveryDelay": 0.05, "adsRecoilMult": 0.8,
+		"kick": {"back": 0.04, "up": 0.015, "roll": 0.015, "shake": 0.04},
+		"colors": {"main": "#c08a3e", "accent": "#ff4fd8", "glow": "#ffe0f6", "tracer": "#e8e2d6"},
+		"botRange": [8, 50],
+	},
 	"sizzler": {
 		"id": "sizzler", "name": "SIZZLER", "category": "Burning semi-auto shotgun", "slotHint": 1,
 		"blurb": "Four hot shells, as fast as you can click. Up close a shot hits for 50 and sets them burning for 3 more every half second, six times (68 in all). Useless past 12 m.",
@@ -246,18 +261,19 @@ const WEAPON_SCOPES := {
 	"walloper": ["iron", "dot", "ring", "x2"],
 	"sizzler": ["iron", "dot"],
 	"tumbleweed": ["iron", "dot"],
+	"slingshot": ["bare", "eagle"],
 }
 
 ## Every weapon draws its own reticle shape inside whatever scope is fitted.
 const RETICLES := {
 	"plasti9": "dot", "foamFury": "chevron", "brickbreaker": "brick", "bubbleBlaster": "bubbles",
 	"thunderspring": "cross", "rapidRascal": "circleDot", "crayonCannon": "crayon", "starlightZapper": "star",
-	"jackBlaster": "jack", "plungerBow": "dot", "popcornPopper": "kernels", "walloper": "boom", "sizzler": "bubbles", "tumbleweed": "dot",
+	"jackBlaster": "jack", "plungerBow": "dot", "popcornPopper": "kernels", "walloper": "boom", "sizzler": "bubbles", "tumbleweed": "dot", "slingshot": "dot",
 }
 
 const WEAPON_ORDER := [
 	"plasti9", "foamFury", "brickbreaker", "bubbleBlaster", "thunderspring", "rapidRascal", "crayonCannon",
-	"starlightZapper", "jackBlaster", "plungerBow", "popcornPopper", "walloper", "sizzler", "tumbleweed",
+	"starlightZapper", "jackBlaster", "plungerBow", "popcornPopper", "walloper", "sizzler", "tumbleweed", "slingshot",
 ]
 
 const MOVE := {
@@ -290,9 +306,9 @@ const MOVE := {
 const CLASSES := {
 	"light": {
 		"name": "Light", "health": 100.0, "speed": 1.1, "melee": "sword",
-		"guns": ["rapidRascal", "bubbleBlaster", "thunderspring", "plungerBow", "starlightZapper", "plasti9", "tumbleweed"],
+		"guns": ["rapidRascal", "bubbleBlaster", "thunderspring", "plungerBow", "starlightZapper", "plasti9", "tumbleweed", "slingshot"],
 		"abilities": ["dash", "grapple"],
-		"gadgets": ["glitchJug", "stairs", "fragGrenade", "pyroGrenade", "flashbang"],
+		"gadgets": ["glitchJug", "stairs", "fragGrenade", "pyroGrenade", "flashbang", "launchPad"],
 	},
 	"medium": {
 		"name": "Medium", "health": 150.0, "speed": 0.9, "melee": "spear",
@@ -339,13 +355,17 @@ const GADGETS := {
 		"projectile": {"kind": "projectile", "visual": "grenade", "speed": 21.0, "gravity": 18.0, "radius": 0.14, "life": 1.6},
 		"explosion": {"radius": 1.0, "maxDamage": 0.0, "selfDamageMult": 0.0, "pieceDamage": 0.0, "flash": {"radius": 10.0, "time": 3.0}},
 		"colors": {"main": "#f8f9fa", "accent": "#ffd23f", "glow": "#ffffff", "tracer": "#f8f9fa"}},
+	"launchPad": {"id": "launchPad", "gadget": true, "name": "Launch Pad", "short": "Pad", "cooldown": 20.0,
+		"blurb": "Slaps down a springy pad in front of you for 25 seconds. Step on it to fly up about 4 metres and keep your speed. Anyone can use it.",
+		"deploy": "pad", "life": 25.0, "boost": 13.5, "carry": 1.25,
+		"colors": {"main": "#2b2d42", "accent": "#06d6a0", "glow": "#9dffcb", "tracer": "#06d6a0"}},
 	"stairs": {"id": "stairs", "gadget": true, "name": "Pop-up Stairs", "short": "Stairs", "cooldown": 22.0,
 		"blurb": "Unfolds a staircase in front of you, about a storey high. Lasts 30 seconds.",
 		"deploy": "stairs", "life": 30.0, "steps": 6, "rise": 0.55, "run": 0.55, "width": 1.6,
 		"colors": {"main": "#ffd23f", "accent": "#3a86ff", "glow": "#ffd23f", "tracer": "#ffd23f"}},
 	"turret": {"id": "turret", "gadget": true, "name": "Turret", "short": "Turret", "cooldown": 30.0,
 		"blurb": "Sets down a little turret that shoots enemies it can see within 28 m for 30 seconds.",
-		"deploy": "turret", "life": 30.0, "range": 28.0, "interval": 0.16, "spreadDeg": 2.6,
+		"deploy": "turret", "life": 30.0, "range": 28.0, "interval": 0.16, "spreadDeg": 2.0,
 		"gun": {"id": "turret", "name": "TURRET", "damage": 8.0, "headMult": 1.0, "effectiveRange": 18.0, "falloffEnd": 32.0, "minDamageMult": 0.6,
 			"projectile": {"kind": "projectile", "visual": "bullet", "speed": 150, "gravity": 1.5, "radius": 0.04, "life": 0.35}, "colors": {"main": "#3d405b", "accent": "#ffd23f", "glow": "#ffd23f", "tracer": "#ffd23f"}},
 		"colors": {"main": "#3d405b", "accent": "#ffd23f", "glow": "#ffd23f", "tracer": "#ffd23f"}},
@@ -353,11 +373,10 @@ const GADGETS := {
 		"blurb": "Pumps 60 health into you and every teammate within 7 m.",
 		"heal": 60.0, "radius": 7.0,
 		"colors": {"main": "#2dc653", "accent": "#ffffff", "glow": "#7dff6b", "tracer": "#2dc653"}},
-	"breachDrill": {"id": "breachDrill", "gadget": true, "name": "Breach Drill", "short": "Drill", "cooldown": 20.0,
-		"blurb": "Fired at a wall, it drills in for a moment, blasts a big hole through it and flashes anyone on the other side.",
+	"breachDrill": {"id": "breachDrill", "gadget": true, "dart": true, "name": "Breach Drill", "short": "Drill", "cooldown": 20.0,
+		"blurb": "Fires straight like a dart. Wherever it hits it blasts a big hole through the wall and flashes anyone on the other side.",
 		"damage": 0.0, "headMult": 1.0, "pellets": 1,
-		"projectile": {"kind": "projectile", "visual": "drill", "speed": 38.0, "gravity": 4.0, "radius": 0.1, "life": 3.0},
-		"drill": {"delay": 1.4},
+		"projectile": {"kind": "projectile", "visual": "drill", "speed": 75, "gravity": 1.0, "radius": 0.08, "life": 1.6},
 		"explosion": {"radius": 3.0, "maxDamage": 60.0, "selfDamageMult": 0.5, "pieceDamage": 2200.0, "flashThrough": {"radius": 8.0, "time": 2.0}},
 		"colors": {"main": "#ff7b00", "accent": "#3d405b", "glow": "#ffb347", "tracer": "#ff7b00"}},
 	"pyroMine": {"id": "pyroMine", "gadget": true, "name": "Pyro Mine", "short": "Fire Mine", "cooldown": 16.0,

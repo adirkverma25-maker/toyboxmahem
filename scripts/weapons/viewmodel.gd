@@ -396,12 +396,13 @@ func update(dt: float, c: Dictionary) -> void:
 	if melee_hold:
 		holder.visible = false  # melee instead of a blaster: no gun in view
 	# bow: limbs, string and arrow follow the draw
-	if current_id == "plungerBow":
+	if parts.has("nock"):
 		var draw := U.smoothstep(0, 1, c.charge)
 		m.aim_string(draw)
 		if parts.has("arrow") and ws:
 			(parts.arrow as Node3D).visible = ws.mag > 0 and (ws.drawing() or c.now >= ws.next_fire - 0.25)
-		hand_r.position = Vector3(0, -0.01, (parts.nock.position.z if parts.has("nock") else 0.15) + 0.03)
+		var nk: Node3D = parts.nock
+		hand_r.position = nk.position + (nk.get_meta("hand", Vector3(0, -0.01, 0.03)) as Vector3)
 		hand_r.rotation = Vector3(0.25, 0, 0)
 		hpos.z += draw * 0.03
 		hpos.y += draw * 0.02

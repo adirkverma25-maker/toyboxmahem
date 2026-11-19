@@ -51,7 +51,7 @@ Walls, cover and glass can be shot and blown apart: blast your own way into a bu
 
 Pick a class in **Loadout**:
 
-- **Light:** 100 health and faster. Blasters: Rapid Rascal, Bubble Blaster, Thunderspring, Plunger Longbow, Starlight Zapper, Plasti-9, Tumbleweed (a burst pistol: three shells of three bullets, loaded by hand), or the Toy Sword instead. Ability: Wind-Up Dash or Spring Hook. Gadget: Frag Grenade, Pyro Grenade, Flashbang, Glitch Jug or Pop-up Stairs.
+- **Light:** 100 health and faster. Blasters: Rapid Rascal, Bubble Blaster, Thunderspring, Plunger Longbow, Starlight Zapper, Plasti-9, Tumbleweed (a burst pistol: three shells of three bullets, loaded by hand), Pebble Pinger (a quick slingshot), or the Toy Sword instead. Ability: Wind-Up Dash or Spring Hook. Gadget: Frag Grenade, Pyro Grenade, Flashbang, Glitch Jug, Pop-up Stairs or Launch Pad.
 - **Medium:** 150 health but slower. Blasters: Foam Fury, Brickbreaker, Popcorn Popper, Crayon Cannon, Jack-in-the-Blaster, Walloper, Sizzler (a burning shotgun), or the Toy Spear instead. Ability: Mesh Shield or Cloak. Gadget: Explosive Mine, Pyro Mine, Turret, Health Infuser or Breach Drill.
 
 You carry one weapon, one ability and one gadget.
@@ -63,9 +63,10 @@ You carry one weapon, one ability and one gadget.
 - **Flashbang:** whites out the screen of every enemy who sees it.
 - **Glitch Jug:** zaps enemies so they can't use abilities or gadgets for a few seconds, and shakes their screen.
 - **Pop-up Stairs:** a staircase to climb onto things.
+- **Launch Pad:** a springy pad that throws anyone who steps on it about 4 m up.
 - **Turret:** fires bullets at enemies it can see.
 - **Health Infuser:** heals you and teammates close by.
-- **Breach Drill:** drills into a wall, blasts it open and flashes whoever is on the other side.
+- **Breach Drill:** fired straight like a dart; it blasts open the wall it hits and flashes whoever is on the other side.
 
 - **Free-for-All:** everyone for themselves. First to 30 pops wins.
 - **Team Deathmatch:** 4 v 4, first team to 50.

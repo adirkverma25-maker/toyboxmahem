@@ -4,7 +4,7 @@ extends Control
 ## weapon + ammo, abilities, timer and scores, kill feed, announcements, death screen, scoreboard, team tags,
 ## objective markers. Corner panels scale like the original's CSS zoom; screen-space marks stay pixel-sized.
 
-const ABIL_UI := [["dash", "Dash"], ["grapple", "Hook"], ["cloak", "Cloak"], ["shield", "Shield"], ["fragGrenade", "Frag"], ["pyroGrenade", "Pyro"], ["explosiveMine", "Mine"], ["pyroMine", "Fire Mine"], ["glitchJug", "Glitch"], ["stairs", "Stairs"], ["turret", "Turret"], ["healthInfuser", "Heal"], ["breachDrill", "Drill"], ["flashbang", "Flash"]]
+const ABIL_UI := [["dash", "Dash"], ["grapple", "Hook"], ["cloak", "Cloak"], ["shield", "Shield"], ["fragGrenade", "Frag"], ["pyroGrenade", "Pyro"], ["explosiveMine", "Mine"], ["pyroMine", "Fire Mine"], ["glitchJug", "Glitch"], ["stairs", "Stairs"], ["turret", "Turret"], ["healthInfuser", "Heal"], ["breachDrill", "Drill"], ["flashbang", "Flash"], ["launchPad", "Pad"]]
 const STREAKS := {2: "Double pop!", 3: "Triple pop!", 4: "Toy box tantrum!", 5: "Unstoppable toy!", 7: "Playroom legend!", 10: "Toy of the year!"}
 const FX_SHADER := preload("res://shaders/hud_fx.gdshader")
 

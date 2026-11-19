@@ -35,10 +35,10 @@ func _run() -> void:
 	var L: Dictionary = Cfg.CLASSES.light
 	var M: Dictionary = Cfg.CLASSES.medium
 	check(Cfg.CLASS_ORDER == ["light", "medium"]
-		and L.guns == ["rapidRascal", "bubbleBlaster", "thunderspring", "plungerBow", "starlightZapper", "plasti9", "tumbleweed"]
+		and L.guns == ["rapidRascal", "bubbleBlaster", "thunderspring", "plungerBow", "starlightZapper", "plasti9", "tumbleweed", "slingshot"]
 		and M.guns == ["foamFury", "brickbreaker", "popcornPopper", "crayonCannon", "jackBlaster", "walloper", "sizzler"]
 		and L.abilities == ["dash", "grapple"] and M.abilities == ["shield", "cloak"]
-		and L.gadgets == ["glitchJug", "stairs", "fragGrenade", "pyroGrenade", "flashbang"]
+		and L.gadgets == ["glitchJug", "stairs", "fragGrenade", "pyroGrenade", "flashbang", "launchPad"]
 		and M.gadgets == ["turret", "healthInfuser", "breachDrill", "explosiveMine", "pyroMine"]
 		and L.health == 100.0 and M.health == 150.0 and L.speed == 1.1 and M.speed == 0.9, "class_tables_match_spec")
 	check(not L.abilities.has("cloak") and not M.abilities.has("dash") and not M.abilities.has("grapple") and not M.gadgets.has("fragGrenade") and not M.gadgets.has("pyroGrenade"), "medium_never_moves_or_throws")

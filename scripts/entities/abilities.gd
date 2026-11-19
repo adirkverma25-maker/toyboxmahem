@@ -18,7 +18,7 @@ static func _src(a: Actor):
 static func gadget_throw(a: Actor) -> Array:
 	var g: Dictionary = Cfg.GADGETS.get(a.gadget, {})
 	var fwd := a.forward()
-	var dir := (fwd + Vector3(0, 0.18 if g.has("mine") else 0.12, 0)).normalized()
+	var dir := fwd if g.get("dart", false) else (fwd + Vector3(0, 0.18 if g.has("mine") else 0.12, 0)).normalized()
 	var origin := a.eye_pos() + Vector3(fwd.x, 0, fwd.z).normalized() * 0.35 + Vector3(0, -0.15, 0)
 	return [origin, dir]
 

@@ -4,7 +4,7 @@ extends Node3D
 ## (port of src/combat/Combat.ts, solo/host path).
 ## Events: damage, kill, shot, explosion, hit (see Game for the payload keys).
 
-const PROJ_POOL := {"dart": 140, "bubble": 160, "crayon": 20, "bolt": 120, "arrow": 40, "slug": 40, "bullet": 64, "grenade": 24, "mine": 32, "drill": 8}
+const PROJ_POOL := {"dart": 140, "bubble": 160, "crayon": 20, "bolt": 120, "arrow": 40, "slug": 40, "bullet": 64, "pebble": 40, "grenade": 24, "mine": 32, "drill": 8}
 const STUCK := 40
 const PAINT := ["#ef476f", "#ffd166", "#06d6a0", "#118ab2", "#8338ec", "#ff8c42"]
 
@@ -128,6 +128,8 @@ func _init(p: Phys, effects: Effects, aud, ev: Emitter, actor_list: Callable, lo
 		"slug": Geo.capsule(0.025, 0.3, 3, 6).rotate_basis(Basis(Vector3.RIGHT, PI / 2)).to_mesh(bolt_mat),
 		# turret round: a short glowing tracer
 		"bullet": Geo.capsule(0.022, 0.2, 3, 6).rotate_basis(Basis(Vector3.RIGHT, PI / 2)).to_mesh(bolt_mat),
+		# slingshot pebble
+		"pebble": Geo.icosahedron(0.055, 1).to_mesh(white_std.call(0.8, "#cfc6b4")),
 		# gadgets: a round toy grenade and a flat disc mine (its axis follows the surface it sticks to)
 		"grenade": Geo.sphere(0.13, 12, 9).to_mesh(white_std.call(0.45)),
 		"mine": Geo.cylinder(0.2, 0.22, 0.09, 16).rotate_basis(Basis(Vector3.RIGHT, PI / 2)).to_mesh(white_std.call(0.4)),
@@ -781,7 +783,17 @@ func _deploy(owner: Actor, gid: String, origin: Vector3, dir: Vector3, auth: Str
 	body.set_meta("mat", "plastic")
 	node.add_child(body)
 	var d := {"kind": cfg.deploy, "owner": owner, "auth": auth, "until": now + cfg.life, "node": node, "body": body, "pos": at, "yaw": yaw, "next_shot": now + 0.8, "head": null}
-	if cfg.deploy == "stairs":
+	if cfg.deploy == "pad":
+		# flat springy pad: no collider (you stand on the ground under it), launched when you step on
+		var base := Mats.plastic(cfg.colors.main, {"rough": 0.4})
+		var top := Mats.plastic(cfg.colors.accent, {"rough": 0.3, "emissive": cfg.colors.glow, "emissive_intensity": 0.6})
+		node.add_child(Geo.cylinder(0.75, 0.82, 0.1, 22).mesh_instance(base, Vector3(0, 0.05, 0), Basis(), true))
+		node.add_child(Geo.cylinder(0.62, 0.62, 0.05, 22).mesh_instance(top, Vector3(0, 0.12, 0), Basis(), false))
+		node.add_child(Geo.torus(0.7, 0.03, 6, 26).mesh_instance(top, Vector3(0, 0.1, 0), Basis(Vector3.RIGHT, PI / 2), false))
+		body.queue_free()
+		d.body = null
+		d.cool = {}
+	elif cfg.deploy == "stairs":
 		var a := Mats.plastic(cfg.colors.main, {"rough": 0.4})
 		var b := Mats.plastic(cfg.colors.accent, {"rough": 0.4})
 		for i in int(cfg.steps):
@@ -827,6 +839,9 @@ func _update_deployed(_dt: float) -> void:
 		if now >= d.until or d.owner == null:
 			_undeploy(d)
 			continue
+		if d.kind == "pad":
+			_update_pad(d)
+			continue
 		if d.kind != "turret" or now < d.next_shot:
 			continue
 		var cfg: Dictionary = Cfg.GADGETS.turret
@@ -837,7 +852,7 @@ func _update_deployed(_dt: float) -> void:
 			if not a.alive or a.cloaked or not d.owner.is_enemy(a):
 				continue
 			var dist := muzzle.distance_to(a.chest_pos())
-			if dist < bd and phys.los(muzzle, a.chest_pos(), true):
+			if dist < bd and phys.los(muzzle + (a.chest_pos() - muzzle).normalized() * 0.6, a.chest_pos(), true):
 				bd = dist
 				best = a
 		if best == null:
@@ -889,6 +904,25 @@ func _update_burns(_dt: float) -> void:
 		if x.left > 0 and t.alive:
 			keep.append(x)
 	_burns = keep
+
+
+## Launch Pad: anyone stepping on it flies up and keeps (a bit more of) their run speed.
+func _update_pad(d: Dictionary) -> void:
+	var cfg: Dictionary = Cfg.GADGETS.launchPad
+	var pos: Vector3 = d.pos
+	for a in actors.call():
+		if not a.alive or a.zip != null:
+			continue
+		var dy: float = a.pos.y - pos.y
+		if dy < -0.3 or dy > 0.5 or Vector2(a.pos.x - pos.x, a.pos.z - pos.z).length() > 0.8:
+			continue
+		if now < d.cool.get(a, -1.0) or a.vel.y > 2:
+			continue
+		d.cool[a] = now + 0.6
+		var c: float = cfg.carry
+		a.launch(Vector3(a.vel.x * c, cfg.boost, a.vel.z * c))
+		audio.jump_pad(pos)
+		fx.glow.emit(pos + Vector3(0, 0.2, 0), Vector3(0, 3, 0), U.col(cfg.colors.glow), 0.6, 0.3)
 
 
 ## Burning patches: flames, and damage four times a second to enemies standing in them.

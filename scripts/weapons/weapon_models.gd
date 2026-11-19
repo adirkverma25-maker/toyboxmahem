@@ -953,6 +953,53 @@ func _b_plungerBow() -> void:
 	aim_string(0)
 
 
+func _b_slingshot() -> void:
+	# toy slingshot: a wrapped grip, a gunmetal fork with pink tips, two rubber bands and a leather pouch
+	var k := GunKit.new()
+	var gm := GunKit.mat("gunmetal")
+	var pink := GunKit.accent("#ff4fd8")
+	var wood := GunKit.accent("#c08a3e")
+	k.add(self, GunKit.mat("rubber"), GunKit.box(0.04, 0.13, 0.045, 0.016), Vector3(0, -0.04, 0))
+	k.add(self, wood, GunKit.box(0.044, 0.04, 0.05, 0.014), Vector3(0, 0.04, 0))
+	k.bake()
+	for side in [1.0, -1.0]:
+		var prong := Node3D.new()
+		prong.position = Vector3(0, 0.05, 0)
+		prong.set_meta("rigid", true)
+		add_child(prong)
+		var tip := Vector3(side * 0.075, 0.13, -0.02)
+		prong.add_child(m(Geo.tube([Vector3.ZERO, Vector3(side * 0.03, 0.06, -0.01), tip], 10, 0.011, 8), gm))
+		prong.add_child(m(Geo.sphere(0.017, 10, 8), pink, tip))
+		prong.set_meta("tip", tip)
+		if side > 0:
+			parts.limbU = prong
+		else:
+			parts.limbL = prong
+	var band := Mats.plastic("#e63946", {"rough": 0.6, "clearcoat": 0.0})
+	var s_geo := Geo.cylinder(0.005, 0.005, 1, 6).translate(0, 0.5, 0)
+	var su := m(s_geo, band)
+	var sl := m(s_geo, band)
+	add_child(su)
+	add_child(sl)
+	parts.stringU = su
+	parts.stringL = sl
+	var nock := Node3D.new()
+	nock.position = Vector3(0, 0.18, 0.03)
+	nock.set_meta("rest_z", 0.03)
+	nock.set_meta("pull", 0.28)
+	nock.set_meta("hand", Vector3(0.06, -0.1, 0.05))  # pinching the pouch from below, out of the sight line
+	nock.add_child(m(GunKit.box(0.05, 0.02, 0.035, 0.008), Mats.plastic("#6b4226", {"rough": 0.8, "clearcoat": 0.0})))
+	add_child(nock)
+	parts.nock = nock
+	var pebble := Node3D.new()
+	pebble.position = Vector3(0, 0.18, 0.03)
+	pebble.add_child(m(Geo.icosahedron(0.022, 1), Mats.plastic("#cfc6b4", {"rough": 0.8, "clearcoat": 0.0})))
+	add_child(pebble)
+	parts.arrow = pebble
+	_finalize(Vector3(0, 0.18, -0.06), Vector3(0, 0.17, 0.06), Vector3(0, -0.04, 0), Vector3(0, -0.18, 0.06))
+	aim_string(0)
+
+
 ## Bow: bend the limbs, pull the nock back and re-aim the two string segments. `draw` is 0..1.
 func aim_string(draw: float) -> void:
 	if not parts.has("limbU") or not parts.has("nock"):
@@ -960,9 +1007,10 @@ func aim_string(draw: float) -> void:
 	var lu: Node3D = parts.limbU
 	var ll: Node3D = parts.limbL
 	var nock: Node3D = parts.nock
-	lu.rotation.x = draw * 0.32
-	ll.rotation.x = -draw * 0.32
-	nock.position.z = 0.15 + draw * 0.3
+	if not lu.has_meta("rigid"):
+		lu.rotation.x = draw * 0.32
+		ll.rotation.x = -draw * 0.32
+	nock.position.z = float(nock.get_meta("rest_z", 0.15)) + draw * float(nock.get_meta("pull", 0.3))
 	if parts.has("arrow"):
 		(parts.arrow as Node3D).position.z = nock.position.z
 	for pair in [[lu, parts.stringU], [ll, parts.stringL]]:
