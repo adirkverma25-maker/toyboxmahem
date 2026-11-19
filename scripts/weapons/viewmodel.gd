@@ -719,7 +719,7 @@ func _ensure_hand_shell() -> void:
 		return
 	hand_shell = Node3D.new()
 	var k := GunKit.new()
-	if current.casing == "shell":
+	if current.casing == "shell" or int(Cfg.WEAPONS[current_id].get("shellRounds", 1)) > 1:
 		k.round_at(hand_shell, Vector3(0, 0, 0.03), 0.013, 0.07, true)
 	else:
 		k.round_at(hand_shell, Vector3(0, 0, 0.025), 0.0075, 0.05)

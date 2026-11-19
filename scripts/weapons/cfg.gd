@@ -183,21 +183,19 @@ const WEAPONS := {
 		"knockback": 9,
 	},
 	"tumbleweed": {
-		"id": "tumbleweed", "name": "TUMBLEWEED", "category": "Long-range assault rifle", "slotHint": 1,
-		"blurb": "Long-barrelled AR with a tiny 12-round mag. Hits for 38 at a fast 650 RPM and stays accurate far out, so three body shots drop a Light. Empties in a second, and you reload it one round at a time.",
-		"damage": 38, "headMult": 1.6, "pellets": 1, "magSize": 12, "reserve": 60, "rpm": 650, "auto": true,
-		"reloadTime": 2.4, "reloadPerShell": 0.16, "effectiveRange": 60, "falloffEnd": 130, "minDamageMult": 0.75,
-		"adsZoom": 1.55, "adsTime": 0.24, "adsMoveMult": 0.65,
+		"id": "tumbleweed", "name": "TUMBLEWEED", "category": "Burst pistol", "slotHint": 1,
+		"blurb": "Three shells, three bullets each. One pull fires a 3-bullet burst for 30 a bullet (90 a burst), and you load it by hand a shell (3 bullets) at a time.",
+		"damage": 30, "headMult": 1.5, "pellets": 1, "magSize": 9, "reserve": 27, "rpm": 170, "auto": false,
+		"burst": {"count": 3, "gap": 0.05},
+		"reloadTime": 2.0, "reloadPerShell": 0.5, "shellRounds": 3, "effectiveRange": 30, "falloffEnd": 65, "minDamageMult": 0.6,
+		"adsZoom": 1.3, "adsTime": 0.14, "adsMoveMult": 0.85,
 		"projectile": {"kind": "hitscan", "tracer": "heavy"},
-		"spread": {"hip": 3.2, "ads": 0.18, "move": 1.6, "air": 4.0, "bloomPerShot": 0.1, "bloomMax": 1.6, "bloomDecay": 5},
-		"recoil": {"kind": "pattern",
-			"pitch": [1.5, 1.4, 1.3, 1.2, 1.1, 1.0, 0.9, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8],
-			"yaw": [0.05, 0.1, 0.18, 0.2, 0.12, 0.0, -0.12, -0.2, -0.22, -0.12, 0.05, 0.15, 0.2, 0.1, -0.05, -0.15, -0.2, -0.1],
-			"loopFrom": 6, "jitter": 0.03},
-		"recoveryRate": 7, "recoveryDelay": 0.14, "adsRecoilMult": 0.55,
-		"kick": {"back": 0.05, "up": 0.045, "roll": 0.02, "shake": 0.07},
+		"spread": {"hip": 1.5, "ads": 0.2, "move": 1.0, "air": 2.6, "bloomPerShot": 0.3, "bloomMax": 2.2, "bloomDecay": 5},
+		"recoil": {"kind": "random", "pitch": 1.1, "pitchGrowth": 0, "pitchMax": 1.1, "yaw": 0.3, "yawGrowth": 0, "yawBias": 0.05},
+		"recoveryRate": 9, "recoveryDelay": 0.1, "adsRecoilMult": 0.8,
+		"kick": {"back": 0.07, "up": 0.06, "roll": 0.03, "shake": 0.09},
 		"colors": {"main": "#4cc9f0", "accent": "#ff8c1a", "glow": "#bff4ff", "tracer": "#7fdcff"},
-		"casing": "rifle", "botRange": [14, 70],
+		"casing": "pistol", "botRange": [3, 22],
 	},
 	"sizzler": {
 		"id": "sizzler", "name": "SIZZLER", "category": "Burning semi-auto shotgun", "slotHint": 1,
@@ -247,14 +245,14 @@ const WEAPON_SCOPES := {
 	"popcornPopper": ["iron", "dot", "ring", "x2", "x4"],
 	"walloper": ["iron", "dot", "ring", "x2"],
 	"sizzler": ["iron", "dot"],
-	"tumbleweed": ["iron", "dot", "ring", "x2", "x4"],
+	"tumbleweed": ["iron", "dot"],
 }
 
 ## Every weapon draws its own reticle shape inside whatever scope is fitted.
 const RETICLES := {
 	"plasti9": "dot", "foamFury": "chevron", "brickbreaker": "brick", "bubbleBlaster": "bubbles",
 	"thunderspring": "cross", "rapidRascal": "circleDot", "crayonCannon": "crayon", "starlightZapper": "star",
-	"jackBlaster": "jack", "plungerBow": "dot", "popcornPopper": "kernels", "walloper": "boom", "sizzler": "bubbles", "tumbleweed": "chevron",
+	"jackBlaster": "jack", "plungerBow": "dot", "popcornPopper": "kernels", "walloper": "boom", "sizzler": "bubbles", "tumbleweed": "dot",
 }
 
 const WEAPON_ORDER := [

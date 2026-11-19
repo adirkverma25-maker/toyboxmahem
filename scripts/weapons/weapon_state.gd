@@ -339,8 +339,10 @@ func update(dt: float, now: float) -> void:
 				_shell_timer = cfg.reloadPerShell
 			elif _shell_phase == "shells":
 				if mag < cfg.magSize and reserve > 0:
-					mag += 1
-					reserve -= 1
+					# one shell = shellRounds bullets (1 for a normal shotgun shell)
+					var n := mini(int(cfg.get("shellRounds", 1)), mini(int(cfg.magSize - mag), reserve))
+					mag += n
+					reserve -= n
 					_beat("shell")
 				if mag >= cfg.magSize or reserve <= 0:
 					_shell_phase = "close"

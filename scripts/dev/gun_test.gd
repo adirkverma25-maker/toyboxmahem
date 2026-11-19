@@ -56,13 +56,64 @@ static func run(g, only := "") -> void:
 		while ws.reloading and frames < 1500:
 			await tree.process_frame
 			frames += 1
-			var f: float = ws.reload_progress() if not ws.cfg.has("reloadPerShell") else (g.time - t0) / (0.25 + float(ws.cfg.reloadPerShell) * ws.cfg.magSize + 0.3)
+			var f: float = ws.reload_progress() if not ws.cfg.has("reloadPerShell") else (g.time - t0) / (0.25 + float(ws.cfg.reloadPerShell) * ceilf(float(ws.cfg.magSize) / int(ws.cfg.get("shellRounds", 1))) + 0.3)
 			if si < stages.size() and f >= stages[si]:
 				if shots != "":
 					g._shot(shots.path_join("gun_%s_reload_%d.png" % [wid, si]))
 				si += 1
 		print("[gun] %s: reloaded to %d in %.2f s" % [wid, ws.mag, g.time - t0])
 		if ws.mag != ws.cfg.magSize:
+			bad += 1
+	# Tumbleweed: one pull is a 3-bullet burst for 90, and a reload goes 3 / 6 / 9
+	if only == "" or only == "tumbleweed":
+		g.start_match("normal", "training")
+		g.training_gun = "tumbleweed"
+		while g.match_.phase != "playing":
+			await tree.process_frame
+		var tp: Actor = g.player.actor
+		tp.health = 0
+		g._respawn(tp)
+		var td: Actor = null
+		for o in g.actors:
+			if o != tp:
+				td = o
+				break
+		tp.teleport(Vector3(0, 0.3, 10))
+		tp.yaw = 0
+		tp.pitch = 0
+		for i in 80:
+			td.teleport(Vector3(0, 0.3, 6))
+			td.spawn_protect_until = 0
+			await tree.process_frame
+		td.shield = 0
+		td.health = td.max_health
+		var tws: WeaponState = tp.weapon()
+		tp.pitch = atan2(td.chest_pos().y - tp.eye_pos().y, 4.0)
+		await tree.process_frame
+		var hp1: float = td.health
+		# a quick tap (about 0.1 s): the burst must finish on its own
+		g.input._pressed[Binds.kb["fire"][0]] = true
+		for i in 6:
+			g.input._down[Binds.kb["fire"][0]] = true
+			await tree.process_frame
+		g.input._down.erase(Binds.kb["fire"][0])
+		for i in 30:
+			td.teleport(Vector3(0, 0.3, 6))
+			await tree.process_frame
+		print("[gun] tumbleweed burst: mag %d/9, dummy lost %.0f" % [tws.mag, hp1 - td.health])
+		if tws.mag != 6 or hp1 - td.health < 80:
+			bad += 1
+		tws.mag = 0
+		g.input._pressed[Binds.kb["reload"][0]] = true
+		var seen: Array = []
+		var fr := 0
+		while (tws.reloading or fr < 3) and fr < 900:
+			await tree.process_frame
+			fr += 1
+			if seen.is_empty() or seen[seen.size() - 1] != int(tws.mag):
+				seen.append(int(tws.mag))
+		print("[gun] tumbleweed reload counts: %s" % str(seen))
+		if seen != [0, 3, 6, 9]:
 			bad += 1
 	# Sizzler: 50 up close, then burns 6 x 3
 	if only == "" or only == "sizzler":
