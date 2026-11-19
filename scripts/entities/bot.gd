@@ -17,7 +17,7 @@ const PERSONALITIES := {
 	"sergeantSnap": {"aggression": 0.45, "caution": 0.6, "jumpiness": 0.25, "speed": 1.0, "favorite": ["popcornPopper", "jackBlaster"], "dashUse": 0.3, "headshotBias": 0.35},
 	"dinaMite": {"aggression": 0.9, "caution": 0.2, "jumpiness": 0.55, "speed": 1.04, "favorite": ["crayonCannon", "bubbleBlaster", "sizzler"], "dashUse": 0.7, "headshotBias": 0.1},
 	"sparky": {"aggression": 0.6, "caution": 0.35, "jumpiness": 0.7, "speed": 1.1, "favorite": ["starlightZapper", "rapidRascal"], "dashUse": 0.6, "headshotBias": 0.2},
-	"duchessDazzle": {"aggression": 0.35, "caution": 0.7, "jumpiness": 0.4, "speed": 1.0, "favorite": ["thunderspring", "plungerBow", "walloper", "tumbleweed"], "dashUse": 0.3, "headshotBias": 0.5},
+	"duchessDazzle": {"aggression": 0.35, "caution": 0.7, "jumpiness": 0.4, "speed": 1.0, "favorite": ["thunderspring", "plungerBow", "walloper", "skybolt"], "dashUse": 0.3, "headshotBias": 0.5},
 	"nitroNina": {"aggression": 0.8, "caution": 0.25, "jumpiness": 0.6, "speed": 1.12, "favorite": ["rapidRascal", "jackBlaster"], "dashUse": 0.9, "headshotBias": 0.15},
 	"gearboxGus": {"aggression": 0.3, "caution": 0.8, "jumpiness": 0.1, "speed": 0.95, "favorite": ["brickbreaker", "plungerBow", "walloper"], "dashUse": 0.2, "headshotBias": 0.45},
 	"brickette": {"aggression": 0.6, "caution": 0.4, "jumpiness": 0.45, "speed": 1.02, "favorite": ["brickbreaker", "jackBlaster"], "dashUse": 0.4, "headshotBias": 0.2},

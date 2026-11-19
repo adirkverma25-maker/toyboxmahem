@@ -48,9 +48,7 @@ var _dropped := false
 var _casings := {}
 var _flying: Array = []
 var hand_shell: Node3D = null
-var speedloader: Node3D = null
-## revolver: how far the muzzle is tipped up to dump the empties; bolt action: last cycle point (for the casing)
-var _rev_tip := 0.0
+## bolt action: last cycle point (for the casing)
 var _prev_bolt_k := 0.0
 
 
@@ -222,10 +220,6 @@ func set_weapon(id: String, instant := false) -> void:
 	if hand_shell:
 		hand_shell.queue_free()
 		hand_shell = null
-	if speedloader:
-		speedloader.queue_free()
-		speedloader = null
-	_rev_tip = 0.0
 	if id == "":
 		return
 	var m := _get_model(id)
@@ -288,8 +282,6 @@ func on_fire(id: String, ads: bool, reduced: bool) -> void:
 		p.wheel.rotation.x += TAU / 5
 	if current.real and current.eject and current.casing != "" and not current.bolt_action:
 		_throw_casing(current.casing)
-	if p.has("cylinder"):
-		(p.cylinder as Node3D).rotation.z += TAU / 6
 	if current.bolt_action:
 		bolt_t = 1
 	if id == "thunderspring":
@@ -309,6 +301,11 @@ func update(dt: float, c: Dictionary) -> void:
 		bolt_t = maxf(0, bolt_t - dt * 1.8)
 	var m := current
 	if m == null:
+		# no blaster in hand (a melee-only loadout): still sway and draw the sword / spear
+		var rm0 := 0.35 if c.reducedMotion else 1.0
+		sway_x = U.damp(sway_x, clampf(-c.mouseDX * 0.0009, -0.06, 0.06) * rm0, 10, dt)
+		sway_y = U.damp(sway_y, clampf(c.mouseDY * 0.0009, -0.05, 0.05) * rm0, 10, dt)
+		_update_melee(dt)
 		return
 	var ws: WeaponState = c.ws
 	var parts := m.parts
@@ -372,7 +369,7 @@ func update(dt: float, c: Dictionary) -> void:
 		var tilt := [0.2, -0.1, 0.55]
 		if m.real:
 			# real guns roll the other way: magwell / loading port turned toward you, pulled in to the middle
-			tilt = [0.28 + _rev_tip * 0.9, 0.32, -0.6 + _rev_tip * 0.3]
+			tilt = [0.28, 0.32, -0.6]
 			pos.x -= 0.05 * rv
 			pos.y += 0.035 * rv
 		match current_id if not m.real else "":
@@ -393,22 +390,9 @@ func update(dt: float, c: Dictionary) -> void:
 	var hrot := Vector3(rx + kr + sway_y * 2, ry + sway_x * 2.5, rz + kick_roll[0] * rm + sway_x * 1.5)
 	holder.visible = not (scope_hidden and c.ads > 0.9)
 	# melee: the sword / spear swings across the view while the blaster dips out of the way
-	# melee: keyframed swing (wind-up, strike, follow-through, recover) from the ready pose
-	if melee_t > 0 or melee_hold:
-		var k := 0.0
-		if melee_t > 0:
-			melee_t = maxf(0, melee_t - dt)
-			k = 1 - melee_t / melee_len
-		melee_node.visible = true
-		var pz := MeleeModel.pose(melee_kind, k)
-		var bob := sin(time * 2.0) * 0.006 if melee_t <= 0 else 0.0
-		melee_node.transform = Transform3D(pz.basis, pz.origin + Vector3(sway_x, bob + sway_y, 0))
-		if not melee_hold:
-			var out := U.smoothstep(0, 0.2, k) if k < 0.2 else 1 - U.smoothstep(0.75, 1, k)
-			hpos.y -= out * 0.25
-			hrot.z -= out * 0.4
-	else:
-		melee_node.visible = false
+	var dip := _update_melee(dt)
+	hpos.y -= dip * 0.25
+	hrot.z -= dip * 0.4
 	if melee_hold:
 		holder.visible = false  # melee instead of a blaster: no gun in view
 	# bow: limbs, string and arrow follow the draw
@@ -458,6 +442,25 @@ func update(dt: float, c: Dictionary) -> void:
 	# ammo indicators
 	if ws:
 		m.update_ammo_indicator(ws.mag / ws.cfg.magSize, ws.mag)
+
+
+## Keyframed sword / spear pose (wind-up, strike, follow-through, recover). Returns how far the blaster should
+## dip out of the way (0..1) while a swing is under way and a gun is also in hand.
+func _update_melee(dt: float) -> float:
+	if melee_t <= 0 and not melee_hold:
+		melee_node.visible = false
+		return 0.0
+	var k := 0.0
+	if melee_t > 0:
+		melee_t = maxf(0, melee_t - dt)
+		k = 1 - melee_t / melee_len
+	melee_node.visible = true
+	var pz := MeleeModel.pose(melee_kind, k)
+	var bob := sin(time * 2.0) * 0.006 if melee_t <= 0 else 0.0
+	melee_node.transform = Transform3D(pz.basis, pz.origin + Vector3(sway_x, bob + sway_y, 0))
+	if melee_hold:
+		return 0.0
+	return U.smoothstep(0, 0.2, k) if k < 0.2 else 1 - U.smoothstep(0.75, 1, k)
 
 
 func _animate_parts(dt: float, c: Dictionary, rf: float, rv: float) -> void:
@@ -607,10 +610,6 @@ func _real_reload(ws: WeaponState, rf: float, rv: float, c: Dictionary) -> void:
 			hand_rot = Vector3(1.0, 0, 0.2)
 		else:
 			hand = pouch.lerp(lg, U.smoothstep(0, 1, t))
-	elif reloading and m.revolver:
-		_revolver_reload(rf)
-		hand = _rev_hand
-		hand_rot = Vector3(1.0, 0, 0.2)
 	elif reloading and p.has("mag"):
 		var mag: Node3D = p.mag
 		var r: Transform3D = m.rest.mag
@@ -662,12 +661,7 @@ func _real_reload(ws: WeaponState, rf: float, rv: float, c: Dictionary) -> void:
 	elif p.has("mag"):
 		(p.mag as Node3D).visible = true
 		(p.mag as Node3D).transform = m.rest.mag
-	if m.revolver and not reloading:
-		(p.crane as Node3D).rotation.z = 0.0
-		_rev_tip = 0.0
-		if speedloader:
-			speedloader.visible = false
-	if m.rounds and not (reloading and m.revolver):
+	if m.rounds:
 		m.rounds.visible = true
 	if not reloading:
 		_prev_rf = 0.0
@@ -705,73 +699,6 @@ func _real_reload(ws: WeaponState, rf: float, rv: float, c: Dictionary) -> void:
 	hand_l.position = lg.lerp(hand, k2)
 	hand_l.rotation = hand_rot * k2
 
-
-var _rev_hand := Vector3.ZERO
-
-
-## Revolver: swing the cylinder out, tip the muzzle up and punch the six empties out, bring a speedloader up,
-## drop six fresh rounds in, flick the cylinder shut.
-func _revolver_reload(rf: float) -> void:
-	var m := current
-	var p := m.parts
-	var crane: Node3D = p.crane
-	var cyl: Node3D = p.cylinder
-	var lg := m.left_grip
-	var pouch := lg + Vector3(-0.12, -0.6, -0.02)
-	var b_open := _beat("open", 0.1)
-	var b_ej := _beat("eject", 0.22)
-	var b_in := _beat("in", 0.62)
-	var b_close := _beat("close", 0.85)
-	crane.rotation.z = U.smoothstep(b_open - 0.06, b_open + 0.04, rf) * (1 - U.smoothstep(b_close - 0.04, b_close + 0.01, rf)) * 1.25
-	var cyl_at: Vector3 = crane.transform * cyl.position
-	_rev_tip = U.smoothstep(b_ej - 0.1, b_ej - 0.02, rf) * (1 - U.smoothstep(b_ej + 0.06, b_ej + 0.14, rf))
-	if _prev_rf < b_ej and rf >= b_ej:
-		_eject_cylinder(cyl_at)
-	m.rounds.visible = rf < b_ej or rf >= b_in
-	_ensure_speedloader()
-	speedloader.visible = rf >= b_in - 0.24 and rf < b_in
-	var at_cyl := cyl_at + Vector3(-0.02, -0.03, 0.03)
-	var behind := cyl_at + Vector3(0, 0, 0.09)
-	if rf < b_open:
-		_rev_hand = lg.lerp(at_cyl, U.smoothstep(0, b_open, rf))
-	elif rf < b_ej + 0.06:
-		_rev_hand = at_cyl
-	elif rf < b_in - 0.24:
-		_rev_hand = at_cyl.lerp(pouch, U.smoothstep(b_ej + 0.06, b_in - 0.26, rf))
-	elif rf < b_in:
-		_rev_hand = pouch.lerp(behind, U.smoothstep(b_in - 0.24, b_in, rf))
-	elif rf < b_close:
-		_rev_hand = behind.lerp(at_cyl, U.smoothstep(b_in, b_close - 0.04, rf))
-	else:
-		_rev_hand = at_cyl.lerp(lg, U.smoothstep(b_close, 1.0, rf))
-	if _prev_rf < b_close and rf >= b_close:
-		kick_rot[1] += 1.2  # flicked shut
-	_prev_rf = rf
-
-
-func _ensure_speedloader() -> void:
-	if speedloader:
-		return
-	speedloader = Node3D.new()
-	var k := GunKit.new()
-	k.add(speedloader, GunKit.mat("polymer"), GunKit.tube(0.03, 0.014, 12), Vector3(0, 0, 0.012))
-	k.add(speedloader, GunKit.mat("polymer"), GunKit.tube(0.008, 0.03, 8), Vector3(0, 0, 0.03))
-	for i in 6:
-		var a := float(i) / 6 * TAU
-		k.round_at(speedloader, Vector3(cos(a) * 0.021, sin(a) * 0.021, 0.004), 0.008, 0.04)
-	k.bake()
-	speedloader.position = Vector3(0.0, 0.06, -0.03)
-	speedloader.visible = false
-	hand_l.add_child(speedloader)
-
-
-## Six empties drop out of the swung-out cylinder.
-func _eject_cylinder(cyl_at: Vector3) -> void:
-	var xf := holder.transform * current.transform
-	for i in 6:
-		var a := float(i) / 6 * TAU
-		var lp := cyl_at + Vector3(cos(a) * 0.021, sin(a) * 0.021, 0.045)
-		_launch_casing("pistol", xf * lp, xf.basis * Vector3(U.rand(-0.3, 0.3), U.rand(-1.2, -0.4), U.rand(0.6, 1.4)), xf.basis)
 
 ## Throw a copy of the magazine out of the gun: it falls away and disappears.
 func _drop_mag(was_empty: bool) -> void:
@@ -830,15 +757,6 @@ func _throw_casing(kind: String) -> void:
 	n.visible = true
 	var v: Vector3 = xf.basis * Vector3(U.rand(2.6, 3.6), U.rand(2.0, 3.0), U.rand(0.4, 1.2))
 	_flying.append([n, v, Vector3(U.rand(-25, 25), U.rand(-15, 15), U.rand(-25, 25)), 0.55, false])
-
-
-func _launch_casing(kind: String, pos: Vector3, v: Vector3, basis: Basis) -> void:
-	var n := _casing_node(kind)
-	if n == null:
-		return
-	n.transform = Transform3D(basis, pos)
-	n.visible = true
-	_flying.append([n, v, Vector3(U.rand(-12, 12), U.rand(-8, 8), U.rand(-12, 12)), 0.7, false])
 
 
 func _update_flying(dt: float) -> void:

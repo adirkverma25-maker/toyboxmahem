@@ -27,8 +27,7 @@ var mag_dir := Vector3.DOWN
 var charge_cycles := false
 ## where shells are pushed in, for tube-fed guns loaded one at a time
 var shell_port := Vector3.ZERO
-## revolver: crane + cylinder swing out, speedloader reload; bolt action: the bolt cycles after each shot
-var revolver := false
+## bolt action: the bolt cycles after each shot
 var bolt_action := false
 
 static var _seam_mat: StandardMaterial3D
@@ -843,51 +842,77 @@ func _b_sizzler() -> void:
 	_finalize(Vector3(0, 0.035, -0.62), Vector3(0, -0.1, 0.095), Vector3(0, -0.04, -0.33), Vector3(0, -0.12, 0))
 
 
-func _b_tumbleweed() -> void:
-	# six-shot revolver: stainless frame and barrel, toy-turquoise grips, orange tip; the cylinder swings out to reload
+func _b_skybolt() -> void:
+	# long-range AR: full-length gunmetal rails, long fluted barrel with a brake, toy-sky-blue handguard / stock
+	# panels and a flip-up rear sight; mid-length magwell with a curved 30-round mag
 	var k := GunKit.new()
-	var teal := GunKit.accent("#2ec4b6")
-	var steel := GunKit.mat("steel")
+	var sky := GunKit.accent("#4cc9f0")
 	var gm := GunKit.mat("gunmetal")
-	k.add(self, steel, GunKit.box(0.05, 0.08, 0.16, 0.012), Vector3(0, 0.03, -0.03))
-	k.add(self, steel, GunKit.box(0.04, 0.016, 0.1, 0.004), Vector3(0, 0.075, -0.04))
-	k.add(self, steel, GunKit.tube(0.017, 0.24), Vector3(0, 0.045, -0.23))
-	k.add(self, steel, GunKit.box(0.03, 0.03, 0.22, 0.006), Vector3(0, 0.022, -0.23))
-	k.add(self, GunKit.mat("tip"), GunKit.tube(0.019, 0.012), Vector3(0, 0.045, -0.355))
-	k.add(self, GunKit.mat("port"), GunKit.tube(0.009, 0.004), Vector3(0, 0.045, -0.362))
-	k.add(self, gm, GunKit.box(0.006, 0.022, 0.03, 0.002), Vector3(0, 0.072, -0.335))
-	k.add(self, GunKit.mat("dot"), Geo.sphere(0.0035, 8, 6), Vector3(0, 0.082, -0.349))
-	k.add(self, gm, GunKit.box(0.02, 0.008, 0.012, 0.002), Vector3(0, 0.086, 0.02))
-	# hammer, trigger guard, trigger and the turquoise grip
-	k.add(self, gm, GunKit.box(0.014, 0.03, 0.02, 0.004), Vector3(0, 0.075, 0.06), Vector3(-0.5, 0, 0))
-	k.add(self, steel, Geo.torus(0.032, 0.007, 6, 16, PI), Vector3(0, -0.015, -0.03), Vector3(0, PI / 2, PI))
-	k.add(self, gm, GunKit.box(0.01, 0.03, 0.01, 0.003), Vector3(0, -0.012, -0.025), Vector3(-0.25, 0, 0))
-	k.add(self, teal, GunKit.box(0.056, 0.17, 0.075, 0.025), Vector3(0, -0.09, 0.07), Vector3(-0.35, 0, 0))
-	k.add(self, GunKit.mat("dark"), GunKit.tube(0.005, 0.06), Vector3(0, -0.07, 0.06), Vector3(0, PI / 2, 0))
-	# crane + cylinder (swings out to the left)
-	var crane := Node3D.new()
-	crane.position = Vector3(-0.012, -0.008, -0.04)
-	add_child(crane)
-	parts.crane = crane
-	var cyl_n := Node3D.new()
-	cyl_n.position = Vector3(0.012, 0.031, 0)
-	crane.add_child(cyl_n)
-	parts.cylinder = cyl_n
-	k.add(crane, steel, GunKit.box(0.008, 0.012, 0.08, 0.002), Vector3(0.004, 0.0, -0.01))
-	k.add(cyl_n, steel, GunKit.tube(0.034, 0.075, 6))
-	for i in 6:
-		var a := float(i) / 6 * TAU + PI / 6
-		k.add(cyl_n, GunKit.mat("dark"), GunKit.box(0.006, 0.006, 0.06, 0.002), Vector3(cos(a) * 0.033, sin(a) * 0.033, 0))
+	var poly := GunKit.mat("polymer")
+	var port := GunKit.mat("port")
+	var steel := GunKit.mat("steel")
+	k.add(self, gm, GunKit.box(0.062, 0.058, 0.26, 0.008), Vector3(0, -0.025, -0.03))
+	k.add(self, gm, GunKit.box(0.068, 0.07, 0.09, 0.008), Vector3(0, -0.06, -0.12))
+	k.add(self, gm, GunKit.box(0.012, 0.008, 0.09, 0.003), Vector3(0, -0.075, -0.02))
+	k.add(self, gm, GunKit.box(0.01, 0.03, 0.01, 0.003), Vector3(0, -0.06, -0.025), Vector3(-0.2, 0, 0))
+	k.add(self, gm, GunKit.box(0.066, 0.06, 0.32, 0.008), Vector3(0, 0.035, -0.07))
+	k.add(self, gm, GunKit.rail(0.62), Vector3(0, 0.069, -0.2))
+	k.add(self, port, GunKit.box(0.004, 0.026, 0.08, 0.001), Vector3(0.033, 0.03, -0.08))
+	k.add(self, gm, GunKit.tube(0.01, 0.04), Vector3(0.036, 0.045, 0.04))
+	# long free-float handguard with slots
+	k.add(self, sky, GunKit.box(0.062, 0.062, 0.46, 0.014), Vector3(0, 0.032, -0.44))
+	for s in [-1.0, 1.0]:
+		for i in 6:
+			k.add(self, port, GunKit.box(0.004, 0.012, 0.035, 0.002), Vector3(s * 0.031, 0.032, -0.28 - i * 0.065))
+	k.add(self, GunKit.mat("steel"), GunKit.tube(0.011, 0.14), Vector3(0, 0.032, -0.74))
+	k.add(self, gm, GunKit.box(0.04, 0.034, 0.07, 0.006), Vector3(0, 0.032, -0.82))
+	for i in 3:
+		for s in [-1.0, 1.0]:
+			k.add(self, port, GunKit.box(0.004, 0.02, 0.012, 0.001), Vector3(s * 0.021, 0.032, -0.8 - i * 0.02))
+	k.add(self, GunKit.mat("tip"), GunKit.box(0.042, 0.036, 0.012, 0.005), Vector3(0, 0.032, -0.86))
+	# sights on the sight line (y 0.13): a folding rear aperture and a tall front post
+	k.add(self, gm, GunKit.box(0.034, 0.04, 0.022, 0.004), Vector3(0, 0.096, 0.06))
+	k.add(self, gm, Geo.torus(0.008, 0.003, 6, 14), Vector3(0, 0.128, 0.06))
+	k.add(self, gm, GunKit.box(0.03, 0.05, 0.02, 0.004), Vector3(0, 0.1, -0.7))
+	k.add(self, gm, GunKit.box(0.006, 0.04, 0.006, 0.002), Vector3(0, 0.13, -0.7))
+	k.add(self, GunKit.mat("dot"), Geo.sphere(0.003, 8, 6), Vector3(0, 0.152, -0.7))
+	# grip, buffer tube, cheek-riser stock
+	k.add(self, poly, GunKit.box(0.055, 0.15, 0.075, 0.016), Vector3(0, -0.11, 0.075), Vector3(-0.32, 0, 0))
+	k.add(self, gm, GunKit.tube(0.02, 0.2), Vector3(0, 0.025, 0.19))
+	k.add(self, poly, GunKit.box(0.06, 0.1, 0.18, 0.015), Vector3(0, 0.0, 0.27))
+	k.add(self, sky, GunKit.box(0.062, 0.022, 0.12, 0.008), Vector3(0, 0.055, 0.26))
+	k.add(self, GunKit.mat("rubber"), GunKit.box(0.062, 0.12, 0.02, 0.008), Vector3(0, -0.005, 0.355))
+	k.add(self, poly, GunKit.box(0.035, 0.08, 0.035, 0.012), Vector3(0, -0.035, -0.4))
+	var ch := Node3D.new()
+	add_child(ch)
+	parts.charge = ch
+	k.add(ch, gm, GunKit.box(0.05, 0.012, 0.022, 0.004), Vector3(0, 0.062, 0.1))
+	var bcg := Node3D.new()
+	add_child(bcg)
+	parts.bcg = bcg
+	k.add(bcg, steel, GunKit.box(0.003, 0.018, 0.06, 0.001), Vector3(0.032, 0.03, -0.08))
+	var mag := Node3D.new()
+	mag.position = Vector3(0, -0.13, -0.12)
+	mag.rotation = Vector3(0.1, 0, 0)
+	add_child(mag)
+	parts.mag = mag
+	var poly2 := GunKit.mat("polymer2")
+	k.add(mag, poly2, GunKit.box(0.05, 0.11, 0.08, 0.008), Vector3(0, 0.045, 0))
+	k.add(mag, poly2, GunKit.box(0.05, 0.11, 0.08, 0.008), Vector3(0, -0.05, -0.012), Vector3(0.18, 0, 0))
+	for s in [-1.0, 1.0]:
+		for i in 3:
+			k.add(mag, GunKit.mat("dark"), GunKit.box(0.003, 0.004, 0.06, 0.001), Vector3(s * 0.026, 0.05 - i * 0.045, -0.004 * i))
+	k.add(mag, sky, GunKit.box(0.056, 0.016, 0.09, 0.006), Vector3(0, -0.108, -0.022), Vector3(0.18, 0, 0))
 	rounds = Node3D.new()
 	rounds.name = "rounds"
-	cyl_n.add_child(rounds)
-	for i in 6:
-		var a := float(i) / 6 * TAU + PI / 2
-		k.add(rounds, GunKit.mat("brass"), GunKit.tube(0.0085, 0.006, 10), Vector3(cos(a) * 0.021, sin(a) * 0.021, 0.039))
+	mag.add_child(rounds)
+	k.round_at(rounds, Vector3(-0.007, 0.103, 0.028), 0.0055, 0.05)
+	k.round_at(rounds, Vector3(0.007, 0.094, 0.028), 0.0055, 0.05)
 	k.bake()
 	real = true
-	revolver = true
-	_finalize(Vector3(0, 0.045, -0.37), Vector3(0, -0.085, 0.075), Vector3(0, -0.11, 0.04), Vector3(0, -0.085, 0))
+	casing = "rifle"
+	_eject_at(Vector3(0.036, 0.03, -0.08))
+	_finalize(Vector3(0, 0.032, -0.87), Vector3(0, -0.1, 0.075), Vector3(0, -0.07, -0.42), Vector3(0, -0.13, 0))
 
 
 func _limb(sign: float, teal: Material, pink: Material) -> Node3D:

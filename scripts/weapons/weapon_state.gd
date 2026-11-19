@@ -15,7 +15,7 @@ const RELOAD_BEATS := {
 	"plungerBow": [[0.15, "out"], [0.55, "in"], [0.85, "charge"]],
 	"popcornPopper": [[0.12, "out"], [0.3, "drop"], [0.52, "in"], [0.8, "charge"]],
 	"walloper": [[0.12, "out"], [0.3, "drop"], [0.5, "in"], [0.82, "charge"]],
-	"tumbleweed": [[0.1, "open"], [0.22, "eject"], [0.62, "in"], [0.85, "close"]],
+	"skybolt": [[0.13, "out"], [0.31, "drop"], [0.53, "in"], [0.8, "charge"]],
 }
 
 var id: String

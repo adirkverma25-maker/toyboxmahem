@@ -389,7 +389,7 @@ func _hit_barrier(b: Dictionary, point: Vector3, dmg: float) -> void:
 func _world_impact(hit: Dictionary, cfg: Dictionary, d: Vector3) -> void:
 	if hit.dynamic_body:
 		(hit.dynamic_body as RigidBody3D).apply_impulse(Vector3(d.x * 0.6, d.y * 0.6 + 0.2, d.z * 0.6), hit.point - (hit.dynamic_body as RigidBody3D).global_position)
-	var big: bool = cfg.id in ["thunderspring", "walloper", "tumbleweed"]
+	var big: bool = cfg.id in ["thunderspring", "walloper"]
 	fx.impact(hit.point, hit.normal, hit.mat, {"big": big})
 	if randf() < 0.7 or big:
 		audio.impact(hit.mat, hit.point, 1.5 if big else 0.8)

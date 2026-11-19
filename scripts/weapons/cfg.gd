@@ -182,19 +182,22 @@ const WEAPONS := {
 		"casing": "pistol", "botRange": [10, 60],
 		"knockback": 9,
 	},
-	"tumbleweed": {
-		"id": "tumbleweed", "name": "TUMBLEWEED", "category": "Six-shot revolver", "slotHint": 2,
-		"blurb": "Six heavy rounds: 48 a hit, 96 to the head. Slow to fire, quick to aim, and a speedloader reload.",
-		"damage": 48, "headMult": 2.0, "pellets": 1, "magSize": 6, "reserve": 36, "rpm": 150, "auto": false,
-		"reloadTime": 2.6, "effectiveRange": 30, "falloffEnd": 60, "minDamageMult": 0.6,
-		"adsZoom": 1.25, "adsTime": 0.15, "adsMoveMult": 0.85,
+	"skybolt": {
+		"id": "skybolt", "name": "SKYBOLT", "category": "Long-range assault rifle", "slotHint": 1,
+		"blurb": "Long-barrelled AR that stays accurate far out. 27 a hit, 600 RPM climb you can learn, slow to raise and best past 25 m.",
+		"damage": 27, "headMult": 1.6, "pellets": 1, "magSize": 30, "reserve": 120, "rpm": 600, "auto": true,
+		"reloadTime": 2.3, "effectiveRange": 60, "falloffEnd": 130, "minDamageMult": 0.75,
+		"adsZoom": 1.55, "adsTime": 0.26, "adsMoveMult": 0.62,
 		"projectile": {"kind": "hitscan", "tracer": "heavy"},
-		"spread": {"hip": 1.4, "ads": 0.15, "move": 1.0, "air": 2.5, "bloomPerShot": 0.6, "bloomMax": 2.4, "bloomDecay": 5},
-		"recoil": {"kind": "random", "pitch": 3.0, "pitchGrowth": 0, "pitchMax": 3.0, "yaw": 0.4, "yawGrowth": 0, "yawBias": 0.1},
-		"recoveryRate": 9, "recoveryDelay": 0.1, "adsRecoilMult": 0.8,
-		"kick": {"back": 0.12, "up": 0.16, "roll": 0.06, "shake": 0.14},
-		"colors": {"main": "#8f959c", "accent": "#2ec4b6", "glow": "#ffe8a3", "tracer": "#ffd23f"},
-		"botRange": [4, 30],
+		"spread": {"hip": 3.2, "ads": 0.18, "move": 1.6, "air": 4.0, "bloomPerShot": 0.1, "bloomMax": 1.6, "bloomDecay": 5},
+		"recoil": {"kind": "pattern",
+			"pitch": [0.9, 0.85, 0.8, 0.75, 0.7, 0.6, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
+			"yaw": [0.05, 0.1, 0.18, 0.2, 0.12, 0.0, -0.12, -0.2, -0.22, -0.12, 0.05, 0.15, 0.2, 0.1, -0.05, -0.15, -0.2, -0.1],
+			"loopFrom": 6, "jitter": 0.03},
+		"recoveryRate": 7, "recoveryDelay": 0.14, "adsRecoilMult": 0.55,
+		"kick": {"back": 0.05, "up": 0.045, "roll": 0.02, "shake": 0.07},
+		"colors": {"main": "#4cc9f0", "accent": "#ff8c1a", "glow": "#bff4ff", "tracer": "#7fdcff"},
+		"casing": "rifle", "botRange": [14, 70],
 	},
 	"sizzler": {
 		"id": "sizzler", "name": "SIZZLER", "category": "Burning semi-auto shotgun", "slotHint": 1,
@@ -244,19 +247,19 @@ const WEAPON_SCOPES := {
 	"popcornPopper": ["iron", "dot", "ring", "x2", "x4"],
 	"walloper": ["iron", "dot", "ring", "x2"],
 	"sizzler": ["iron", "dot"],
-	"tumbleweed": ["iron", "dot"],
+	"skybolt": ["iron", "dot", "ring", "x2", "x4"],
 }
 
 ## Every weapon draws its own reticle shape inside whatever scope is fitted.
 const RETICLES := {
 	"plasti9": "dot", "foamFury": "chevron", "brickbreaker": "brick", "bubbleBlaster": "bubbles",
 	"thunderspring": "cross", "rapidRascal": "circleDot", "crayonCannon": "crayon", "starlightZapper": "star",
-	"jackBlaster": "jack", "plungerBow": "dot", "popcornPopper": "kernels", "walloper": "boom", "sizzler": "bubbles", "tumbleweed": "dot",
+	"jackBlaster": "jack", "plungerBow": "dot", "popcornPopper": "kernels", "walloper": "boom", "sizzler": "bubbles", "skybolt": "chevron",
 }
 
 const WEAPON_ORDER := [
 	"plasti9", "foamFury", "brickbreaker", "bubbleBlaster", "thunderspring", "rapidRascal", "crayonCannon",
-	"starlightZapper", "jackBlaster", "plungerBow", "popcornPopper", "walloper", "sizzler", "tumbleweed",
+	"starlightZapper", "jackBlaster", "plungerBow", "popcornPopper", "walloper", "sizzler", "skybolt",
 ]
 
 const MOVE := {
@@ -289,7 +292,7 @@ const MOVE := {
 const CLASSES := {
 	"light": {
 		"name": "Light", "health": 100.0, "speed": 1.1, "melee": "sword",
-		"guns": ["rapidRascal", "bubbleBlaster", "thunderspring", "plungerBow", "starlightZapper", "plasti9", "tumbleweed"],
+		"guns": ["rapidRascal", "bubbleBlaster", "thunderspring", "plungerBow", "starlightZapper", "plasti9", "skybolt"],
 		"abilities": ["dash", "grapple"],
 		"gadgets": ["glitchJug", "stairs", "fragGrenade", "pyroGrenade", "flashbang"],
 	},
