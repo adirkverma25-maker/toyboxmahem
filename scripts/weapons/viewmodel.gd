@@ -719,7 +719,10 @@ func _ensure_hand_shell() -> void:
 		return
 	hand_shell = Node3D.new()
 	var k := GunKit.new()
-	k.round_at(hand_shell, Vector3(0, 0, 0.03), 0.013, 0.07, current.casing == "shell")
+	if current.casing == "shell":
+		k.round_at(hand_shell, Vector3(0, 0, 0.03), 0.013, 0.07, true)
+	else:
+		k.round_at(hand_shell, Vector3(0, 0, 0.025), 0.0075, 0.05)
 	k.bake()
 	hand_shell.position = Vector3(0, 0.05, -0.01)
 	hand_shell.rotation = Vector3(-0.2, 0, 0)

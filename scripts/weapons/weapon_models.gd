@@ -910,6 +910,7 @@ func _b_tumbleweed() -> void:
 	k.bake()
 	real = true
 	casing = "rifle"
+	shell_port = Vector3(0, -0.075, -0.12)  # rounds are thumbed in one at a time from underneath
 	_eject_at(Vector3(0.036, 0.03, -0.08))
 	_finalize(Vector3(0, 0.032, -0.87), Vector3(0, -0.1, 0.075), Vector3(0, -0.07, -0.42), Vector3(0, -0.13, 0))
 

@@ -184,9 +184,9 @@ const WEAPONS := {
 	},
 	"tumbleweed": {
 		"id": "tumbleweed", "name": "TUMBLEWEED", "category": "Long-range assault rifle", "slotHint": 1,
-		"blurb": "Long-barrelled AR with a tiny 12-round mag. Hits for 38 at a fast 650 RPM and stays accurate far out, so three body shots drop a Light. Empties in a second.",
+		"blurb": "Long-barrelled AR with a tiny 12-round mag. Hits for 38 at a fast 650 RPM and stays accurate far out, so three body shots drop a Light. Empties in a second, and you reload it one round at a time.",
 		"damage": 38, "headMult": 1.6, "pellets": 1, "magSize": 12, "reserve": 60, "rpm": 650, "auto": true,
-		"reloadTime": 1.9, "effectiveRange": 60, "falloffEnd": 130, "minDamageMult": 0.75,
+		"reloadTime": 2.4, "reloadPerShell": 0.16, "effectiveRange": 60, "falloffEnd": 130, "minDamageMult": 0.75,
 		"adsZoom": 1.55, "adsTime": 0.24, "adsMoveMult": 0.65,
 		"projectile": {"kind": "hitscan", "tracer": "heavy"},
 		"spread": {"hip": 3.2, "ads": 0.18, "move": 1.6, "air": 4.0, "bloomPerShot": 0.1, "bloomMax": 1.6, "bloomDecay": 5},
